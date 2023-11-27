@@ -290,12 +290,12 @@ class Level {
 public:
     Level() = default;
     Matrix<Square> & getGameField();
-    std::pair<size_t, size_t> size() noexcept;
+    [[nodiscard]] std::pair<size_t, size_t> size() const noexcept;
     bool setSize(size_t x, size_t y);
     void setSquareType(SquareType type, size_t x, size_t y);
     std::vector<Item*> deleteItemFromSquare(size_t x, size_t y);
     void addItemToSquare(Item * item, size_t x, size_t y);
-    bool addEntity(Entity * entity, size_t x, size_t y) {gameField[x][y].addEntity(entity);} //Переделать не тольео для монстров
+    bool addEntity(Entity * entity, size_t x, size_t y) {return gameField[x][y].addEntity(entity);} //Переделать не тольео для монстров
     Entity* deleteEntity(std::string name);
     Entity* deleteEntity(Entity * entity);
 private:
@@ -319,5 +319,16 @@ public:
     bool attack(Entity * entity, Directions direction);
     GameService * gameService = new GameService(); // убрать
 };
+
+class MoveAIService {
+public:
+    MoveAIService() = default;
+    std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2);
+    bool move(Entity *, Directions direction);
+
+    GameService *gameService  = new GameService();
+};
+
+
 
 #endif

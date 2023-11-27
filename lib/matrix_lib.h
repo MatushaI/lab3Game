@@ -103,7 +103,7 @@ public:
         delete [] data_;
     }
     // размер
-    std::pair<size_t, size_t> size() {
+    [[nodiscard]] std::pair<size_t, size_t> size() const {
         return {rows_, columns_};
     }
 

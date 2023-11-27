@@ -2,6 +2,7 @@
 //#include <iostream>
 #include <string>
 #include <map>
+#include <queue>
 #include <regex>
 #include <utility>
 
@@ -503,6 +504,10 @@ void Square::changeSquareType(SquareType newtype) {
     type = newtype;
 }
 
+std::pair<size_t, size_t> Level::size() const noexcept {
+    return gameField.size();
+}
+
 
 bool Level::setSize(size_t x, size_t y) {
     if(x < gameField.size().first || y < gameField.size().second) {
@@ -567,7 +572,7 @@ void Level::addItemToSquare(Item * item, size_t x, size_t y) {
     }
 }
 
-Matrix<Square> & Level::getGameField() {
+Matrix<Square> & Level::getGameField(){
     return gameField;
 }
 
@@ -674,5 +679,108 @@ bool AttackService::attack(Entity* entity, Directions const direction) {
     return true;
 }
 
+/*
+    A* algorithm
+ */
+
+bool checkSquare(size_t x, size_t y, Level & level, std::initializer_list<SquareType> const acceptTypes) {
+    if(x >= level.size().first || y >= level.size().second) return false;
+    for (auto const& i : acceptTypes) {
+        if(level.getGameField()[x][y].getSquareType() == i) {
+            return true;
+        }
+    }
+    return false;
+}
+
+struct elementQueue{
+    long grade = 0;
+    long x = 0;
+    long y = 0;
+
+    bool operator==(const elementQueue& elem) const {
+        return elem.x == x && elem.y == y;
+    }
+};
+
+long heuristic(long x, long y, elementQueue const& finish) {
+    return abs(x - finish.x) + abs(y - finish.y);
+}
+
+std::vector<Square *> MoveAIService::findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) {
+    if(!checkSquare(x1, y1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor}) ||
+        !checkSquare(x2, y2, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+        throw std::logic_error("invalid coordinates");
+        }
+
+    auto cmp = [](elementQueue & elem1, elementQueue & elem2) {return elem1.grade > elem2.grade;};
+
+    std::priority_queue<elementQueue, std::vector<elementQueue>, decltype(cmp)> queue(cmp);
+
+    elementQueue start{0, long(x1), long(y1)};
+    elementQueue finish{0, long(x2), long(y2)};
+    Matrix<std::pair<size_t, size_t>> prev(gameService->getLevel().size().first, gameService->getLevel().size().second);
+    Matrix<long> weights(gameService->getLevel().size().first, gameService->getLevel().size().second, LONG_MAX);
+    std::unordered_set<Square*> visited;
+
+    queue.emplace(start);
+    weights[start.x][start.y] = 0;
+
+    while (!queue.empty()) {
+        elementQueue work = queue.top();
+
+        if(work == finish) {
+            break;
+        }
+        if(checkSquare(work.x, work.y - 1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+            if(weights[work.x][work.y - 1] > work.grade + heuristic(work.x, work.y - 1, finish) + 1) {
+                weights[work.x][work.y - 1] = work.grade + heuristic(work.x, work.y - 1, finish) + 1;
+                prev[work.x][work.y - 1] = {work.x, work.y};
+                queue.push({work.grade + heuristic(work.x, work.y - 1, finish) + 1, work.x, work.y - 1});
+            }
+        }
+
+        if(checkSquare(work.x, work.y + 1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+            if(weights[work.x][work.y + 1] > work.grade + heuristic(work.x, work.y + 1, finish) + 1) {
+                weights[work.x][work.y + 1] = work.grade + heuristic(work.x, work.y + 1, finish) + 1;
+                prev[work.x][work.y + 1] = {work.x, work.y};
+                queue.push({work.grade + heuristic(work.x, work.y + 1, finish) + 1, work.x, work.y + 1});
+            }
+        }
+
+        if(checkSquare(work.x - 1, work.y, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+            if(weights[work.x - 1][work.y] > work.grade + heuristic(work.x - 1, work.y, finish) + 1) {
+                weights[work.x - 1][work.y] = work.grade + heuristic(work.x - 1, work.y, finish) + 1;
+                prev[work.x - 1][work.y] = {work.x, work.y};
+                queue.push({work.grade + heuristic(work.x - 1, work.y, finish) + 1, work.x - 1, work.y});
+            }
+        }
+
+        if(checkSquare(work.x + 1, work.y, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+            if(weights[work.x + 1][work.y] > work.grade + heuristic(work.x + 1, work.y, finish) + 1) {
+                weights[work.x + 1][work.y] = work.grade + heuristic(work.x + 1, work.y, finish) + 1;
+                prev[work.x + 1][work.y] = {work.x, work.y};
+                queue.push({work.grade + heuristic(work.x + 1, work.y, finish) + 1, work.x + 1, work.y});
+            }
+        }
+        queue.pop();
+    }
 
 
+    if(weights[finish.x][finish.y] == LONG_MAX) {
+        return {};
+    }
+
+    elementQueue i = {0, finish.x, finish.y};
+    elementQueue swap;
+    std::vector<Square*> result;
+    while (i != start) {
+        result.push_back(&gameService->getLevel().getGameField()[i.x][i.y]);
+        swap = i;
+        i.x = prev[swap.x][swap.y].first;
+        i.y = prev[swap.x][swap.y].second;
+    }
+    result.push_back(&gameService->getLevel().getGameField()[start.x][start.y]);
+
+    return result;
+}
