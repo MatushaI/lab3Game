@@ -1,36 +1,40 @@
 #include <iostream>
-#include "game_lib/gameLib.hpp"
+#include <queue>
+
+#include "items.h"
+#include "enemy.h"
+#include "gameServices.h"
 #include <string>
 #include <vector>
 #include <thread>
 
+
 int main() {
-    std::vector<std::string> aboba = {"name1", "name2"};
-    Weapon *test = new Weapon("testGun", "MachineGun");
-    CartridgeContainer * test2 = new CartridgeContainer("conter", "12,7mm", 100, 0, 20);
 
-    MedKit * med = new MedKit("med", 100, 1000);
-    Operative smart("aboba", 100, 100, 5, 3);
-    std::cout << smart.addItem(test);
-    std::cout << smart.addItem(med);
-    smart.setHealth(50);
-    std::cout << std::endl << smart.getCurrentHealth() << std::endl;
-    std::cout << smart.useMedKit().first;
-    std::cout << std::endl << smart.getCurrentHealth() << std::endl;
-    //std::cout << smart.throwItem("med")->getName();
+    MoveService * move = new MoveService();
 
+    for (int i = 0; i < 9; i++) {
+        move->gameService->getLevel().getGameField()[i][4].changeSquareType(SquareType::Wall);
+    }
 
-    Item * testItem = smart.throwItem("");
-    //std::cout << smart.canKeeping(test2);
+    //move->gameService->getLevel().getGameField()[3][9].changeSquareType(SquareType::Wall);
+    std::vector<Square*> res = move->findMinWay(0, 0, 0, 9);
 
-    AttackService serv;
-    serv.gameService->getLevel().addEntity(&smart, 1, 1);
-    //std::cout << serv.gameService->getLevel().getGameField()[1][1].getEntity() << " " << &smart;
-
-    serv.attack(&smart, Directions::east);
-
-    //Inventory invent(1, 4);
-    //Weapon test1("MachineGun", 25500, 50, 1, 10, "alabugaTech", 300);
+    for (int i = 0; i < move->gameService->getLevel().size().first; i++) {
+        for (int j = 0; j < move->gameService->getLevel().size().second; ++j) {
+            auto l = std::find(res.begin(), res.end(), &move->gameService->getLevel().getGameField()[i][j]);
+            if(l != res.end()) {
+                std::cout << "🟩";
+            } else if(move->gameService->getLevel().getGameField()[i][j].getSquareType() == SquareType::Wall) {
+                std::cout << "⬛";
+            } else {
+                std::cout << "⬜";
+            }
+        }
+        std::cout << "\n";
+    }
 
     return 0;
 }
+
+
