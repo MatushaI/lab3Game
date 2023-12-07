@@ -62,18 +62,18 @@ protected:
 class wildEntity : public Entity, public Attacking {
 public:
     wildEntity();
+    wildEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime);
     int attack() override;
     int move() override;
     ~wildEntity() override = default;
 private:
     int attackTime;
-    Inventory inventory;
 };
 
-class SmartEntity : public Entity, ActionItem, Attacking { // Добавить новый
+class SmartEntity : public Entity, public ActionItem, public Attacking { // Добавить новый
 public:
     SmartEntity();
-    SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius);
+    SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime);
 
     int move() override;
     Item * throwItem(std::string const& name) override;
@@ -89,6 +89,7 @@ protected:
 
 class Furajire : public Entity, ActionItem {
 public:
+    bool canKeeping(Item* item) override;
     Furajire(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, size_t x, size_t y);
     int move() override;
     Item * throwItem(std::string const& name) override;
@@ -101,14 +102,17 @@ private:
 class Operative : public SmartEntity, MedKitUsed {
 public:
     Operative();
-    Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius);
-    int getWeight() noexcept;
+    Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime);
     int getTotalWeight() noexcept;
-    //void changeActiveItem();
-    std::pair<bool, int> useMedKit() override;
+    bool addActiveItem(Item * item);
+    Item * throwItem(std::string const& name) override;
     bool addItem(Item* item) override;
+    Weapon * getActiveWeapon();
+    Weapon * changeActiveWeapon(Item * item);
+    std::pair<bool, int> useMedKit() override;
     ~Operative() override = default;
 private:
+    Weapon *activeWeapon = nullptr;
     Inventory inventory_;
     int totalWeight = 0;
 };

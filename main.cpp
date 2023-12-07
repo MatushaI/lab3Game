@@ -11,14 +11,21 @@
 
 int main() {
 
-    MoveService * move = new MoveService();
+    auto * oper = new Furajire("aboba", 40, 40, 40, 20, 10, 10);
+    //std::cout << oper->getName();
+    GameService * game = new GameService();
+    auto * move = new MoveService(game);
+
+
 
     for (int i = 0; i < 9; i++) {
         move->gameService->getLevel().getGameField()[i][4].changeSquareType(SquareType::Wall);
     }
+    move->gameService->getLevel().setSize(100, 100);
+    move->gameService->getLevel().setSize(10, 10);
 
-    //move->gameService->getLevel().getGameField()[3][9].changeSquareType(SquareType::Wall);
-    std::vector<Square*> res = move->findMinWay(0, 0, 0, 9);
+    move->gameService->getLevel().getGameField()[3][9].changeSquareType(SquareType::Wall);
+    std::vector<Square*> res = move->findMinWay(0, 0, 99, 99);
 
     for (int i = 0; i < move->gameService->getLevel().size().first; i++) {
         for (int j = 0; j < move->gameService->getLevel().size().second; ++j) {

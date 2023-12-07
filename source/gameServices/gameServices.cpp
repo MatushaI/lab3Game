@@ -1,5 +1,7 @@
 #include "gameServices.h"
 
+#include <__ranges/drop_view.h>
+
 std::vector<Item *> & Square::getItems() noexcept {
     return items;
 }
@@ -41,7 +43,6 @@ bool Square::addEntity(Entity* entity) {
         throw std::logic_error("this square isn't empty");
     }
     entity_ = entity;
-    //std::cout << entity_;
     return true;
 }
 
@@ -142,6 +143,69 @@ std::pair<size_t, size_t> findPos(Entity const* entity, Matrix<Square> & gameFie
     throw std::runtime_error("Entity not found");
 }
 
+bool deleteEntityFromField (Entity * entity, Matrix<Square> & field) {
+    for (int i = 0; i < field.size().first; i++) {
+        for (int j = 0; j < field.size().second; j++) {
+            if(field[i][j].getEntity() == entity) {
+                field[i][j].deleteEntity();
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool Level::addEntity(Entity* entity, size_t x, size_t y) {
+    try {
+        gameField[x][y].addEntity(entity);
+        if(dynamic_cast<Operative*>(entity)) {
+            operatives.insert(entity);
+        } else {
+            monsters.insert(entity);
+        }
+    } catch (std::logic_error const& ex) {
+        return false;
+    }
+    return true;
+}
+
+
+bool Level::deleteEntity(std::string const& name) {
+    auto it =  std::find_if(operatives.begin(), operatives.end(), [name](Entity * entity){return entity->getName() == name;});
+    if(it != operatives.end()) {
+        deleteEntityFromField(*it, gameField);
+        delete *it;
+        operatives.erase(it);
+        return true;
+    }
+    it =  std::find_if(monsters.begin(), monsters.end(), [name](Entity * entity){return entity->getName() == name;});
+    if(it != monsters.end()) {
+        deleteEntityFromField(*it, gameField);
+        delete *it;
+        monsters.erase(it);
+        return true;
+    }
+    return false;
+}
+
+bool Level::deleteEntity(Entity* entity) {
+    if(operatives.count(entity)) {
+        deleteEntityFromField(entity, gameField);
+        operatives.erase(entity);
+        delete entity;
+        return true;
+    }
+
+    if(monsters.count(entity)) {
+        deleteEntityFromField(entity, gameField);
+        monsters.erase(entity);
+        delete entity;
+        return true;
+    }
+    return false;
+}
+
+
 bool AttackService::attack(Entity* entity, Directions const direction) {
     if(dynamic_cast<wildEntity*>(entity)) {
         std::pair<size_t, size_t> entityPos;
@@ -174,16 +238,133 @@ bool AttackService::attack(Entity* entity, Directions const direction) {
             }
         }
 
-        if(dynamic_cast<Operative*>(victim)) {
-            //Почему не работает??? (обман, работает)
+        if(!dynamic_cast<Operative*>(victim)) {
+            return false;
         }
 
-        auto * wild = dynamic_cast<wildEntity*>(entity);
-        victim->setHealth(victim->getCurrentHealth() - wild->getDamage());
-        if(victim->getCurrentHealth() <= 0) {
-            // death
+        wildEntity * wild = dynamic_cast<wildEntity*>(entity);
+        if(wild->attack()) {
+            if(victim->getCurrentHealth() - wild->getDamage() > 0) {
+                victim->setHealth(victim->getCurrentHealth() - wild->getDamage());
+            } else {
+                gameService->getLevel().deleteEntity(victim);
+            }
         }
     }
+
+    if(dynamic_cast<Operative*>(entity)) {
+        Operative * oper = dynamic_cast<Operative*>(entity);
+        if(!oper->getActiveWeapon()) {
+            return false;
+        }
+
+        std::pair<size_t, size_t> entityPos;
+        try {
+            entityPos = findPos(entity, gameService->getLevel().getGameField());
+        } catch (std::exception &) {
+            return false;
+        }
+        Entity* victim = nullptr;
+        switch (direction) {
+            case Directions::north : {
+                if(entityPos.first == 0) { throw std::logic_error("first row and north"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
+                break;
+            }
+            case Directions::east : {
+                if(entityPos.second == gameService->getLevel().getGameField().size().second - 1) {throw std::logic_error("end column and east");}
+                victim = gameService->getLevel().getGameField()[entityPos.first][entityPos.second + 1].getEntity();
+                break;
+            }
+            case Directions::south : {
+                if(entityPos.first == gameService->getLevel().getGameField().size().first - 1) {throw std::logic_error("end row and south"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first + 1][entityPos.second].getEntity();
+                break;
+            }
+            case Directions::west : {
+                if(entityPos.second == 0) {throw std::logic_error("first column and west"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
+                break;
+            }
+        }
+
+        if(dynamic_cast<Operative*>(victim)) {
+            return false;
+        }
+
+        int time;
+        try {
+            time = oper->getCurrentTime() >= oper->getActiveWeapon()->shot();
+            if(time) {
+                oper->attack();
+                if(victim->getCurrentHealth() <= oper->getActiveWeapon()->getDamage()) {
+                    gameService->getLevel().deleteEntity(victim);
+                } else {
+                    victim->setHealth(victim->getCurrentHealth() - oper->getActiveWeapon()->getDamage());
+                }
+            }
+        } catch (std::logic_error const&){
+            return false;
+        }
+    }
+
+    if(dynamic_cast<SmartEntity*>(entity)) {
+        SmartEntity * smart_entity = dynamic_cast<SmartEntity*>(entity);
+        if(!smart_entity->getActiveWeapon()) {
+            return false;
+        }
+
+        std::pair<size_t, size_t> entityPos;
+        try {
+            entityPos = findPos(entity, gameService->getLevel().getGameField());
+        } catch (std::exception &) {
+            return false;
+        }
+        Entity* victim = nullptr;
+        switch (direction) {
+            case Directions::north : {
+                if(entityPos.first == 0) { throw std::logic_error("first row and north"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
+                break;
+            }
+            case Directions::east : {
+                if(entityPos.second == gameService->getLevel().getGameField().size().second - 1) {throw std::logic_error("end column and east");}
+                victim = gameService->getLevel().getGameField()[entityPos.first][entityPos.second + 1].getEntity();
+                break;
+            }
+            case Directions::south : {
+                if(entityPos.first == gameService->getLevel().getGameField().size().first - 1) {throw std::logic_error("end row and south"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first + 1][entityPos.second].getEntity();
+                break;
+            }
+            case Directions::west : {
+                if(entityPos.second == 0) {throw std::logic_error("first column and west"); }
+                victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
+                break;
+            }
+        }
+
+        if(!dynamic_cast<Operative*>(victim)) {
+            return false;
+        }
+
+        int time;
+        try {
+            time = smart_entity->getCurrentTime() >= smart_entity->getActiveWeapon()->shot();
+            if(time) {
+                smart_entity->attack();
+                if(victim->getCurrentHealth() <= smart_entity->getActiveWeapon()->getDamage()) {
+                    gameService->getLevel().deleteEntity(victim);
+                } else {
+                    victim->setHealth(victim->getCurrentHealth() - smart_entity->getActiveWeapon()->getDamage());
+                }
+            }
+        } catch (std::logic_error const&){
+            return false;
+        }
+    }
+
+
     return true;
 }
 
@@ -213,6 +394,14 @@ struct elementQueue{
 
 long heuristic(long x, long y, elementQueue const& finish) {
     return abs(x - finish.x) + abs(y - finish.y);
+}
+
+AttackService::AttackService(GameService* game) {
+    gameService = game;
+}
+
+MoveService::MoveService(GameService* game) {
+    gameService = game;
 }
 
 std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) {
@@ -273,7 +462,6 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
         }
         queue.pop();
     }
-
 
     if(weights[finish.x][finish.y] == LONG_MAX) {
         return {};

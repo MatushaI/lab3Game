@@ -13,7 +13,6 @@ bool Entity::setHealth(int count) {
     return true;
 }
 
-
 std::string const& Entity::getName() noexcept { return name_; }
 int Entity::getCurrentHealth() const noexcept { return currentHealth_; }
 int Entity::getMaxHealth() const noexcept { return maxHealth_; }
@@ -38,10 +37,21 @@ double Attacking::getAccuracy() { return accuracy; }
 
 // wildEntity
 
+wildEntity::wildEntity() : Attacking(0, 0), attackTime(0) {}
+
+wildEntity::wildEntity(std::string const&name, int maxHealth, int maxTime, int moveTime,
+    int viewingRadius, int damage, double accuracy, int attackTime) :
+    Attacking(damage, accuracy),
+    Entity(name, maxHealth, maxTime, moveTime, viewingRadius), attackTime(attackTime) {}
+
+
 int wildEntity::attack() {
-
+    if(currentTime_ >= attackTime) {
+        currentTime_ -= attackTime;
+        return attackTime;
+    }
+    return 0;
 }
-
 
 int wildEntity::move() {
     if(currentTime_ < moveTime_) {
@@ -53,12 +63,10 @@ int wildEntity::move() {
 
 // SmartEntity
 
-SmartEntity::SmartEntity() : Entity(), Attacking(0, 0),attackTime(0) {}
+SmartEntity::SmartEntity() : Attacking(0, 0),attackTime(0) {}
 
-SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius) :
-Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(0, 0) {
-    attackTime = 0;
-}
+SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime) :
+Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy), attackTime(attackTime) {}
 
 int SmartEntity::move() {
     if(currentTime_ < moveTime_) {
@@ -93,8 +101,8 @@ int SmartEntity::attack() {
     if(currentTime_ < attackTime) {
         throw std::logic_error("not enough time points");
     }
-    currentTime_ -= attackTime;
-    return attackTime;
+    currentTime_ -= activeWeapon->getShotTime();
+    return activeWeapon->getShotTime();
 }
 
 Weapon* SmartEntity::getActiveWeapon() {
@@ -133,15 +141,19 @@ bool Furajire::addItem(Item *item) {
     return false;
 }
 
+bool Furajire::canKeeping(Item * item) {
+    return dynamic_cast<Weapon*>(item);
+}
+
 // Operatives
 
 Operative::Operative() : SmartEntity(), inventory_(0,0) {}
 
-Operative::Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius) :
-    inventory_(2, 2), SmartEntity(name, maxHealth, maxTime, moveTime, viewingRadius){
+Operative::Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime) :
+    inventory_(2, 2), SmartEntity(name, maxHealth, maxTime, moveTime, viewingRadius, damage, accuracy, attackTime){
 
 }
-
+/*
 int Operative::getWeight() noexcept {
     int res = 0;
     for (auto const i : inventory_.data()) {
@@ -153,7 +165,7 @@ int Operative::getWeight() noexcept {
     }
     return res;
 }
-
+*/
 int Operative::getTotalWeight() noexcept { return totalWeight; }
 
 std::pair<bool, int> Operative::useMedKit() {
@@ -193,6 +205,35 @@ std::pair<bool, int> Operative::useMedKit() {
         return {false, 0};
     }
     return {true, time};
+}
+
+Item* Operative::throwItem(std::string const&name) {
+    Item * res = nullptr;
+    try {
+        res = inventory_.changeItem(nullptr, name);
+    } catch (std::runtime_error const& ex) {}
+    return res;
+}
+
+bool Operative::addActiveItem(Item * item) {
+    if(dynamic_cast<Weapon*>(item) && !activeWeapon) {
+        activeWeapon = dynamic_cast<Weapon*>(item);
+        return true;
+    }
+    return false;
+}
+
+Weapon * Operative::changeActiveWeapon(Item * item) {
+    if(dynamic_cast<Weapon*>(item) || item == nullptr) {
+        Weapon * swap = activeWeapon;
+        activeWeapon = dynamic_cast<Weapon*>(item);
+        return swap;
+    }
+    throw std::logic_error("Item is not weapon");
+}
+
+Weapon* Operative::getActiveWeapon() {
+    return activeWeapon;
 }
 
 bool Operative::addItem(Item* item) {

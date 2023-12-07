@@ -47,9 +47,9 @@ public:
     void setSquareType(SquareType type, size_t x, size_t y);
     std::vector<Item*> deleteItemFromSquare(size_t x, size_t y);
     void addItemToSquare(Item * item, size_t x, size_t y);
-    bool addEntity(Entity * entity, size_t x, size_t y) {return gameField[x][y].addEntity(entity);} //Переделать не тольео для монстров
-    Entity* deleteEntity(std::string name);
-    Entity* deleteEntity(Entity * entity);
+    bool addEntity(Entity * entity, size_t x, size_t y);
+    bool deleteEntity(std::string const& name);
+    bool deleteEntity(Entity * entity);
 private:
     std::set<Entity*> operatives = std::set<Entity*>();
     std::set<Entity*> monsters = std::set<Entity*>();
@@ -68,17 +68,19 @@ protected:
 
 class AttackService {
 public:
+    AttackService(GameService * game);
     bool attack(Entity * entity, Directions direction);
-    GameService * gameService = new GameService(); // убрать
+    GameService * gameService = nullptr; // убрать
 };
 
 class MoveService {
 public:
+    MoveService(GameService * game);
     MoveService() = default;
     std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2);
     bool move(Entity *, Directions direction);
 
-    GameService *gameService  = new GameService();
+    GameService *gameService = nullptr;
 };
 
 #endif //GAMESERVICES_H
