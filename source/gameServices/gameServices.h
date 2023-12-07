@@ -78,7 +78,7 @@ public:
     MoveService(GameService * game);
     MoveService() = default;
     std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2);
-    bool move(Entity *, Directions direction);
+    bool move(Entity * entity, Directions direction);
 
     GameService *gameService = nullptr;
 };

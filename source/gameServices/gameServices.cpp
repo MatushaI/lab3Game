@@ -52,7 +52,6 @@ Entity* Square::deleteEntity() {
     return res;
 }
 
-
 Entity* Square::getEntity() {
     return entity_;
 }
@@ -480,3 +479,50 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
 
     return result;
 }
+
+bool MoveService::move(Entity* entity, Directions direction) {
+
+    std::pair<size_t, size_t> entityPos;
+    try {
+        entityPos = findPos(entity, gameService->getLevel().getGameField());
+    } catch (std::exception &) {
+        return false;
+    }
+
+    switch (direction) {
+        case Directions::north : {
+            if(entityPos.first == 0) { throw std::logic_error("first row and north"); }
+            if(gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity() == nullptr) {
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second].deleteEntity();
+                gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].addEntity(entity);
+            }
+            break;
+        }
+        case Directions::east : {
+            if(entityPos.second == gameService->getLevel().getGameField().size().second - 1) {throw std::logic_error("end column and east");}
+            if(gameService->getLevel().getGameField()[entityPos.first][entityPos.second + 1].getEntity() == nullptr) {
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second].deleteEntity();
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second + 1].addEntity(entity);
+            }
+            break;
+            break;
+        }
+        case Directions::south : {
+            if(entityPos.first == gameService->getLevel().getGameField().size().first - 1) {throw std::logic_error("end row and south"); }
+            if(gameService->getLevel().getGameField()[entityPos.first + 1][entityPos.second].getEntity() == nullptr) {
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second].deleteEntity();
+                gameService->getLevel().getGameField()[entityPos.first + 1][entityPos.second].addEntity(entity);
+            }
+            break;
+        }
+        case Directions::west : {
+            if(entityPos.second == 0) {throw std::logic_error("first column and west"); }
+            if(gameService->getLevel().getGameField()[entityPos.first][entityPos.second - 1].getEntity() == nullptr) {
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second].deleteEntity();
+                gameService->getLevel().getGameField()[entityPos.first][entityPos.second - 1].addEntity(entity);
+            }
+            break;
+        }
+    }
+}
+
