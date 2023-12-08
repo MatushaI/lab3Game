@@ -20,7 +20,7 @@ public:
     int getDamage();
     double getAccuracy();
     virtual ~Attacking() = default;
-private:
+protected:
     int damage;
     double accuracy;
 };
@@ -73,7 +73,7 @@ private:
 class SmartEntity : public Entity, public ActionItem, public Attacking { // Добавить новый
 public:
     SmartEntity();
-    SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime);
+    SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy);
 
     int move() override;
     Item * throwItem(std::string const& name) override;
@@ -83,7 +83,6 @@ public:
     bool canKeeping(Item * item) override;
     ~SmartEntity() override = default;
 protected:
-    int attackTime;
     Weapon * activeWeapon = nullptr;
 };
 
@@ -102,7 +101,7 @@ private:
 class Operative : public SmartEntity, MedKitUsed {
 public:
     Operative();
-    Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime);
+    Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy);
     int getTotalWeight() noexcept;
     bool addActiveItem(Item * item);
     Item * throwItem(std::string const& name) override;
@@ -112,7 +111,6 @@ public:
     std::pair<bool, int> useMedKit() override;
     ~Operative() override = default;
 private:
-    Weapon *activeWeapon = nullptr;
     Inventory inventory_;
     int totalWeight = 0;
 };

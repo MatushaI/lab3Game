@@ -42,13 +42,16 @@ wildEntity::wildEntity() : Attacking(0, 0), attackTime(0) {}
 wildEntity::wildEntity(std::string const&name, int maxHealth, int maxTime, int moveTime,
     int viewingRadius, int damage, double accuracy, int attackTime) :
     Attacking(damage, accuracy),
-    Entity(name, maxHealth, maxTime, moveTime, viewingRadius), attackTime(attackTime) {}
+    Entity(name, maxHealth, maxTime, moveTime, viewingRadius), attackTime(attackTime) {
+    currentTime_ = maxTime;
+    currentHealth_ = maxHealth;
+}
 
 
 int wildEntity::attack() {
     if(currentTime_ >= attackTime) {
         currentTime_ -= attackTime;
-        return attackTime;
+        return damage;
     }
     return 0;
 }
@@ -63,10 +66,10 @@ int wildEntity::move() {
 
 // SmartEntity
 
-SmartEntity::SmartEntity() : Attacking(0, 0),attackTime(0) {}
+SmartEntity::SmartEntity() : Attacking(0, 0) {}
 
-SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime) :
-Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy), attackTime(attackTime) {}
+SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy) :
+Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy) {}
 
 int SmartEntity::move() {
     if(currentTime_ < moveTime_) {
@@ -98,11 +101,19 @@ bool SmartEntity::addItem(Item *item) {
 }
 
 int SmartEntity::attack() {
-    if(currentTime_ < attackTime) {
-        throw std::logic_error("not enough time points");
+    if(activeWeapon) {
+        try {
+            if(currentTime_ >= activeWeapon->getShotTime()) {
+                activeWeapon->shot();
+                currentTime_ -= activeWeapon->getShotTime();
+                return activeWeapon->getDamage();
+            }
+        } catch (std::exception const& ex) {
+            return 0;
+        }
     }
-    currentTime_ -= activeWeapon->getShotTime();
-    return activeWeapon->getShotTime();
+
+    return 0;
 }
 
 Weapon* SmartEntity::getActiveWeapon() {
@@ -149,9 +160,10 @@ bool Furajire::canKeeping(Item * item) {
 
 Operative::Operative() : SmartEntity(), inventory_(0,0) {}
 
-Operative::Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy, int attackTime) :
-    inventory_(2, 2), SmartEntity(name, maxHealth, maxTime, moveTime, viewingRadius, damage, accuracy, attackTime){
-
+Operative::Operative(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy) :
+    inventory_(2, 2), SmartEntity(name, maxHealth, maxTime, moveTime, viewingRadius, damage, accuracy){
+    currentTime_ = maxTime;
+    currentHealth_ = maxHealth;
 }
 /*
 int Operative::getWeight() noexcept {

@@ -73,6 +73,14 @@ public:
     GameService * gameService = nullptr; // убрать
 };
 
+class EntityAI {
+public:
+    EntityAI(GameService * game);
+    void AITick();
+private:
+    GameService * game = nullptr;
+};
+
 class MoveService {
 public:
     MoveService(GameService * game);
