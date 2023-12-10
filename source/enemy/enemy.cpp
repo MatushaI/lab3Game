@@ -20,7 +20,7 @@ int Entity::getCurrentTime() const noexcept { return currentTime_; }
 int Entity::getMaxTime() const noexcept { return  maxTime_; }
 int Entity::getMoveTime() const noexcept { return moveTime_; }
 int Entity::getViewingRadius() const noexcept { return viewingRadius_; }
-
+void Entity::updateCurrentTime() { currentTime_ = maxTime_; }
 // Attacking
 
 Attacking::Attacking(int damage, double accuracy) {
@@ -242,10 +242,6 @@ Weapon * Operative::changeActiveWeapon(Item * item) {
         return swap;
     }
     throw std::logic_error("Item is not weapon");
-}
-
-Weapon* Operative::getActiveWeapon() {
-    return activeWeapon;
 }
 
 bool Operative::addItem(Item* item) {

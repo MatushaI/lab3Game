@@ -4,7 +4,6 @@
 #include "enemy.h"
 #include "matrix_lib.h"
 #include "items.h"
-#include "Inventory.h"
 #include <set>
 #include <queue>
 
@@ -13,28 +12,24 @@ enum class SquareType {
     Wall,
     Window,
     Barrier,
-    Storage
+    Storage,
+    NoType
 };
 
 class Square{
 public:
     Square() = default;
-    Square & operator=(Square const&) = default;
-    Square & operator=(Square &&) = default;
-    Square(Square const&) = default;
-    Square(Square &&) = default;
-    ~Square() = default;
 
-    Entity* getEntity();
-    std::vector<Item *> & getItems() noexcept;
+    [[nodiscard]] Entity* getEntity() const;
+    [[nodiscard]] std::vector<Item *> & getItems() noexcept;
     bool addEntity(Entity* entity);
     Entity* deleteEntity();
-    SquareType getSquareType();
+    [[nodiscard]] SquareType getSquareType() const;
     void changeSquareType(SquareType newtype);
 
 private:
-    std::vector<Item *> items;
-    SquareType type;
+    std::vector<Item *> items = std::vector<Item *>();
+    SquareType type = SquareType::Floor;
     Entity *entity_ = nullptr;
 };
 
@@ -68,14 +63,14 @@ protected:
 
 class AttackService {
 public:
-    AttackService(GameService * game);
+    explicit AttackService(GameService * game);
     bool attack(Entity * entity, Directions direction);
     GameService * gameService = nullptr; // убрать
 };
 
 class EntityAI {
 public:
-    EntityAI(GameService * game);
+    explicit EntityAI(GameService * game);
     void AITick();
 private:
     GameService * game = nullptr;
@@ -83,12 +78,15 @@ private:
 
 class MoveService {
 public:
-    MoveService(GameService * game);
+    explicit MoveService(GameService * game);
     MoveService() = default;
-    std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2);
+    [[nodiscard]] std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) const;
     bool move(Entity * entity, Directions direction);
 
     GameService *gameService = nullptr;
 };
+
+std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Square> & field);
+bool viewingObjectArea(int start_x, int start_y, int target_x, int target_y, Matrix<Square> & field);
 
 #endif //GAMESERVICES_H

@@ -46,6 +46,7 @@ public:
     [[nodiscard]] int getMoveTime() const noexcept;
     [[nodiscard]] int getViewingRadius() const noexcept;
     bool setHealth(int count);
+    void updateCurrentTime();
 
     virtual int move() = 0;
     virtual ~Entity() = default;
@@ -106,7 +107,6 @@ public:
     bool addActiveItem(Item * item);
     Item * throwItem(std::string const& name) override;
     bool addItem(Item* item) override;
-    Weapon * getActiveWeapon();
     Weapon * changeActiveWeapon(Item * item);
     std::pair<bool, int> useMedKit() override;
     ~Operative() override = default;

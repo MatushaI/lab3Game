@@ -6,11 +6,11 @@ std::vector<Item *> & Square::getItems() noexcept {
     return items;
 }
 
-SquareType Square::getSquareType() {
+SquareType Square::getSquareType() const {
     return type;
 }
 
-void Square::changeSquareType(SquareType newtype) {
+void Square::changeSquareType(SquareType const newtype) {
     type = newtype;
 }
 
@@ -18,8 +18,7 @@ std::pair<size_t, size_t> Level::size() const noexcept {
     return gameField.size();
 }
 
-
-bool Level::setSize(size_t x, size_t y) {
+bool Level::setSize(size_t const x, size_t const y) {
     if(x < gameField.size().first || y < gameField.size().second) {
         return false;
     }
@@ -31,8 +30,7 @@ bool Level::setSize(size_t x, size_t y) {
             }
         }
         gameField = copy;
-    } catch (std::exception const& r){
-        //Добавить log игры
+    } catch (std::exception const&){
         return false;
     }
     return true;
@@ -52,11 +50,11 @@ Entity* Square::deleteEntity() {
     return res;
 }
 
-Entity* Square::getEntity() {
+Entity* Square::getEntity() const{
     return entity_;
 }
 
-void Level::setSquareType(SquareType type, size_t x, size_t y) {
+void Level::setSquareType(SquareType const type, size_t const x, size_t const y) {
     if(x < gameField.size().first && y < gameField.size().second) {
         gameField[x][y].changeSquareType(type);
     } else {
@@ -64,7 +62,7 @@ void Level::setSquareType(SquareType type, size_t x, size_t y) {
     }
 }
 
-std::vector<Item*> Level::deleteItemFromSquare(size_t x, size_t y) {
+std::vector<Item*> Level::deleteItemFromSquare(size_t const x, size_t const y) {
     if(x < gameField.size().first && y < gameField.size().second) {
         return std::move(gameField[x][y].getItems());
     } else {
@@ -72,7 +70,7 @@ std::vector<Item*> Level::deleteItemFromSquare(size_t x, size_t y) {
     }
 }
 
-void Level::addItemToSquare(Item * item, size_t x, size_t y) {
+void Level::addItemToSquare(Item * item, size_t const x, size_t const y) {
     if(x < gameField.size().first && y < gameField.size().second) {
         gameField[x][y].getItems().push_back(item);
     } else {
@@ -163,7 +161,7 @@ bool Level::addEntity(Entity* entity, size_t x, size_t y) {
         } else {
             monsters.insert(entity);
         }
-    } catch (std::logic_error const& ex) {
+    } catch (std::logic_error const&) {
         return false;
     }
     return true;
@@ -206,7 +204,7 @@ bool Level::deleteEntity(Entity* entity) {
 }
 
 
-bool AttackService::attack(Entity* entity, Directions const direction) {
+bool AttackService::attack(Entity* entity, Directions const direction){
 
     std::pair<size_t, size_t> entityPos;
     try {
@@ -260,10 +258,10 @@ bool AttackService::attack(Entity* entity, Directions const direction) {
     A* algorithm
  */
 
-bool checkSquare(size_t x, size_t y, Level & level, std::initializer_list<SquareType> const acceptTypes) {
-    if(x >= level.size().first || y >= level.size().second) return false;
+bool checkSquare(size_t x, size_t y, Matrix<Square> & field, std::initializer_list<SquareType> const acceptTypes) {
+    if(x >= field.size().first || y >= field.size().second) return false;
     for (auto const& i : acceptTypes) {
-        if(level.getGameField()[x][y].getSquareType() == i) {
+        if(field[x][y].getSquareType() == i) {
             return true;
         }
     }
@@ -292,9 +290,9 @@ MoveService::MoveService(GameService* game) {
     gameService = game;
 }
 
-std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) {
-    if(!checkSquare(x1, y1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor}) ||
-        !checkSquare(x2, y2, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) const {
+    if(!checkSquare(x1, y1, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor}) ||
+        !checkSquare(x2, y2, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor})) {
         throw std::logic_error("invalid coordinates");
         }
 
@@ -317,7 +315,7 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
         if(work == finish) {
             break;
         }
-        if(checkSquare(work.x, work.y - 1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+        if(checkSquare(work.x, work.y - 1, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor})) {
             if(weights[work.x][work.y - 1] > work.grade + heuristic(work.x, work.y - 1, finish) + 1) {
                 weights[work.x][work.y - 1] = work.grade + heuristic(work.x, work.y - 1, finish) + 1;
                 prev[work.x][work.y - 1] = {work.x, work.y};
@@ -325,7 +323,7 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
             }
         }
 
-        if(checkSquare(work.x, work.y + 1, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+        if(checkSquare(work.x, work.y + 1, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor})) {
             if(weights[work.x][work.y + 1] > work.grade + heuristic(work.x, work.y + 1, finish) + 1) {
                 weights[work.x][work.y + 1] = work.grade + heuristic(work.x, work.y + 1, finish) + 1;
                 prev[work.x][work.y + 1] = {work.x, work.y};
@@ -333,7 +331,7 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
             }
         }
 
-        if(checkSquare(work.x - 1, work.y, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+        if(checkSquare(work.x - 1, work.y, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor})) {
             if(weights[work.x - 1][work.y] > work.grade + heuristic(work.x - 1, work.y, finish) + 1) {
                 weights[work.x - 1][work.y] = work.grade + heuristic(work.x - 1, work.y, finish) + 1;
                 prev[work.x - 1][work.y] = {work.x, work.y};
@@ -341,7 +339,7 @@ std::vector<Square *> MoveService::findMinWay(size_t x1, size_t y1, size_t x2, s
             }
         }
 
-        if(checkSquare(work.x + 1, work.y, gameService->getLevel(), {SquareType::Storage, SquareType::Floor})) {
+        if(checkSquare(work.x + 1, work.y, gameService->getLevel().getGameField(), {SquareType::Storage, SquareType::Floor})) {
             if(weights[work.x + 1][work.y] > work.grade + heuristic(work.x + 1, work.y, finish) + 1) {
                 weights[work.x + 1][work.y] = work.grade + heuristic(work.x + 1, work.y, finish) + 1;
                 prev[work.x + 1][work.y] = {work.x, work.y};
@@ -425,6 +423,110 @@ std::vector<std::pair<size_t, size_t>> findStorages(Matrix<Square> & field) {
             }
         }
     }
+    return result;
+}
+
+// Функция для проверки того, видно ли объект (последняя точка не учитывается)
+
+bool viewingObjectArea(int start_x, int start_y, int target_x, int target_y, Matrix<Square> & field) {
+    int x = start_x, y = start_y;
+    double tan45 = atan2(1, 1);
+    if(start_x >= target_x) {
+        if(start_y <= target_y) {
+            double downTan = atan2(start_x - target_x - 0.5, target_y - start_y + 0.5);
+            double upTan = atan2(start_x - target_x + 0.5, target_y - start_y - 0.5);
+
+            do {
+                atan2(start_x - x + 0.5, y - start_y + 0.5) > downTan ? y++ : x--;
+
+                if(!checkSquare(x, y, field, {SquareType::Floor, SquareType::Storage, SquareType::Window})) {
+                    downTan = atan2( start_x - x + 0.5, y - start_y - 0.5);
+                }
+                if(downTan > upTan) {
+                    return false;
+                }
+            } while (!(x == target_x && y == target_y));
+
+            return true;
+        } else {
+            double downTan = atan2(start_x - target_x - 0.5, target_y - start_y - 0.5);
+            double upTan = atan2(start_x - target_x + 0.5, target_y - start_y + 0.5);
+
+            do {
+                atan2(start_x - x + 0.5, y - start_y - 0.5) < downTan ? y-- : x--;
+
+                if(!checkSquare(x, y, field, {SquareType::Floor, SquareType::Storage, SquareType::Window})) {
+                    downTan = atan2( start_x - x + 0.5, y - start_y - 0.5);
+                }
+                if(downTan < upTan) {
+                    return false;
+                }
+            } while (!(x == target_x && y == target_y));
+
+            return true;
+        }
+    } else {
+        if(start_y <= target_y) {
+            double downTan = atan2(start_x - target_x - 0.5, target_y - start_y - 0.5);
+            double upTan = atan2(start_x - target_x + 0.5, target_y - start_y + 0.5);
+
+            do {
+                atan2(start_x - x - 0.5, y - start_y + 0.5) > downTan ? x++ : y++;
+
+                if(!checkSquare(x, y, field, {SquareType::Floor, SquareType::Storage, SquareType::Window})) {
+                    downTan = atan2( start_x - x - 0.5, y - start_y + 0.5);
+                }
+                if(downTan > upTan) {
+                    return false;
+                }
+            } while (!(x == target_x && y == target_y));
+
+            return true;
+        } else {
+            double downTan = atan2(start_x - target_x - 0.5, target_y - start_y + 0.5);
+            double upTan = atan2(start_x - target_x + 0.5, target_y - start_y - 0.5);
+
+            do {
+                atan2(start_x - x - 0.5, y - start_y + 0.5) < downTan ? x++ : y--;
+
+                if(!checkSquare(x, y, field, {SquareType::Floor, SquareType::Storage, SquareType::Window})) {
+                    downTan = atan2( start_x - x - 0.5, y - start_y + 0.5);
+                }
+                if(downTan < upTan) {
+                    return false;
+                }
+            } while (!(x == target_x && y == target_y));
+
+            return true;
+        }
+    }
+}
+
+std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Square> & field) {
+    std::vector<Entity*> result;
+    int viewingRadius = entity->getViewingRadius();
+    if(x < 0 || y < 0 || x >= field.getColumns() || y >= field.getRows()) {
+        return result;
+    }
+
+    int start_x = x - viewingRadius < 0 ? 0 : x - viewingRadius;
+    int finish_x = x + viewingRadius >= field.getColumns() ? static_cast<int>(field.getColumns()) - 1 : x + viewingRadius;
+
+    int start_y = y - viewingRadius < 0 ? 0 : y - viewingRadius;
+    int finish_y = y + viewingRadius >= field.getRows() ? static_cast<int>(field.getRows()) - 1 : y + viewingRadius;
+
+    for (int i = start_x; i <= finish_x; i++) {
+        for (int j = start_y; j <= finish_y; j++) {
+            if(sqrt(pow(x - i, 2) + pow(y - j, 2)) <= viewingRadius) {
+                if(field[i][j].getEntity() && !(i == x && j == y)) {
+                    if(viewingObjectArea(x, y, i, j, field)) {
+                        result.push_back(field[i][j].getEntity());
+                    }
+                }
+            }
+        }
+    }
+
     return result;
 }
 
