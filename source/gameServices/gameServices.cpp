@@ -621,8 +621,6 @@ std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Sq
 void EntityAI::AITick() {
     std::vector<std::pair<size_t, size_t>> storagePoints = findStorages(game->getLevel().getGameField());
 
-
-
 }
 
 
