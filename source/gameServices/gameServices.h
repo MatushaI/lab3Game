@@ -42,6 +42,7 @@ public:
     void setSquareType(SquareType type, size_t x, size_t y);
     std::vector<Item*> deleteItemFromSquare(size_t x, size_t y);
     void addItemToSquare(Item * item, size_t x, size_t y);
+    void addItemToSquare(std::vector<Item*> const& items, size_t x, size_t y);
     bool addEntity(Entity * entity, size_t x, size_t y);
     bool deleteEntity(std::string const& name);
     bool deleteEntity(Entity * entity);

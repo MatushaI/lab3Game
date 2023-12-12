@@ -76,6 +76,17 @@ void Level::addItemToSquare(Item * item, size_t const x, size_t const y) {
     }
 }
 
+void Level::addItemToSquare(std::vector<Item *> const&items, size_t x, size_t y) {
+    if(x < gameField.size().first && y < gameField.size().second) {
+        for (auto i: items) {
+            gameField[x][y].getItems().push_back(i);
+        }
+    } else {
+        throw std::logic_error("more i or j in gameField");
+    }
+}
+
+
 Matrix<Square> & Level::getGameField(){
     return gameField;
 }
@@ -142,7 +153,6 @@ bool deleteEntityFromField (Entity * entity, Matrix<Square> & field) {
     for (int i = 0; i < field.size().first; i++) {
         for (int j = 0; j < field.size().second; j++) {
             if(field[i][j].getEntity() == entity) {
-
                 field[i][j].deleteEntity();
                 return true;
             }
@@ -220,8 +230,14 @@ checkBarriersResult checkBarriers(int viewingRadius, Directions const direction,
                 if(i != y_) {
                     if(field[x_][i].getEntity()) {
                         return {field[x_][i].getEntity(), x_, i, true};
-                    } else if (field[x_][i].getSquareType() == SquareType::Barrier || field[x_][i].getSquareType() == SquareType::Window) {
+                    }
+
+                    if (field[x_][i].getSquareType() == SquareType::Barrier || field[x_][i].getSquareType() == SquareType::Window) {
                         return {nullptr, x_, i, true};
+                    }
+
+                    if (field[x_][i].getSquareType() == SquareType::Wall) {
+                        break;
                     }
                 }
             }
@@ -233,11 +249,18 @@ checkBarriersResult checkBarriers(int viewingRadius, Directions const direction,
                 if (i != x_) {
                     if(field[i][y_].getEntity()) {
                         return {field[i][y_].getEntity(), i, y_, true};
-                    } else if (field[i][y_].getSquareType() == SquareType::Barrier || field[i][y_].getSquareType() == SquareType::Window) {
+                    }
+
+                    if (field[i][y_].getSquareType() == SquareType::Barrier || field[i][y_].getSquareType() == SquareType::Window) {
                         return {nullptr, i, y_, true};
+                    }
+
+                    if (field[i][y_].getSquareType() == SquareType::Wall) {
+                        break;
                     }
                 }
             }
+            break;
         }
         case Directions::west : {
             size_t border = y_ > viewingRadius ? y_ - viewingRadius : 0;
@@ -245,11 +268,18 @@ checkBarriersResult checkBarriers(int viewingRadius, Directions const direction,
                 if(i != y_+ 1) {
                     if(field[x_][i - 1].getEntity()) {
                         return {field[x_][i - 1].getEntity(), x_, i - 1, true};
-                    } else if (field[x_][i - 1].getSquareType() == SquareType::Barrier || field[x_][i - 1].getSquareType() == SquareType::Window) {
+                    }
+
+                    if (field[x_][i - 1].getSquareType() == SquareType::Barrier || field[x_][i - 1].getSquareType() == SquareType::Window) {
                         return {nullptr, x_, i - 1, true};
+                    }
+
+                    if (field[x_][i - 1].getSquareType() == SquareType::Wall) {
+                        break;
                     }
                 }
             }
+            break;
         }
         case Directions::south : {
             size_t border = x_ > viewingRadius ? x_ - viewingRadius : 0;
@@ -257,11 +287,18 @@ checkBarriersResult checkBarriers(int viewingRadius, Directions const direction,
                 if(i != x_ + 1) {
                     if(field[i - 1][y_].getEntity()) {
                         return {field[i - 1][y_].getEntity(), i - 1, y_, true};
-                    } else if (field[i - 1][y_].getSquareType() == SquareType::Barrier || field[i - 1][y_].getSquareType() == SquareType::Window) {
+                    }
+
+                    if (field[i - 1][y_].getSquareType() == SquareType::Barrier || field[i - 1][y_].getSquareType() == SquareType::Window) {
                         return {nullptr, i - 1, y_, true};
+                    }
+
+                    if (field[i - 1][y_].getSquareType() == SquareType::Wall) {
+                        break;
                     }
                 }
             }
+            break;
         }
     }
     return {nullptr, 0 , 0 , false};
@@ -318,6 +355,10 @@ bool AttackService::attack(Entity* entity, Directions const direction){
         return false;
     }
 
+    if(victim == nullptr && res.inBorders == false) {
+        return false;
+    }
+
     auto * attackingEntity = dynamic_cast<Attacking*>(entity);
 
     int damage = attackingEntity->attack();
@@ -332,13 +373,20 @@ bool AttackService::attack(Entity* entity, Directions const direction){
         return false;
     }
 
+    entityPos = findPos(victim, gameService->getLevel().getGameField());
+
     if(!breakBorders) {
         if(victim->getCurrentHealth() <= damage) {
+            auto victimItem = dynamic_cast<ActionItem*>(victim);
+            if(victimItem) {
+                gameService->getLevel().addItemToSquare(victimItem->throwAllItems(), entityPos.first, entityPos.second);
+            }
             gameService->getLevel().deleteEntity(victim);
         } else {
             victim->setHealth(victim->getCurrentHealth() - damage);
         }
     }
+
     return true;
 }
 

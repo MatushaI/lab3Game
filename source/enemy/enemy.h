@@ -9,6 +9,7 @@ public:
     virtual Item* throwItem(std::string const& name) = 0;
     virtual bool addItem(Item * item) = 0;
     virtual bool canKeeping(Item * item) = 0;
+    virtual std::vector<Item*> throwAllItems() = 0;
     virtual ~ActionItem() = default;
 };
 
@@ -81,6 +82,7 @@ public:
     bool addItem(Item * item) override;
     int attack() override;
     Weapon * getActiveWeapon();
+    std::vector<Item*> throwAllItems() override;
     bool canKeeping(Item * item) override;
     ~SmartEntity() override = default;
 protected:
@@ -94,6 +96,7 @@ public:
     int move() override;
     Item * throwItem(std::string const& name) override;
     bool addItem(Item * item) override;
+    std::vector<Item*> throwAllItems() override;
 
 private:
     Inventory inventory;
@@ -108,6 +111,7 @@ public:
     Item * throwItem(std::string const& name) override;
     bool addItem(Item* item) override;
     Weapon * changeActiveWeapon(Item * item);
+    std::vector<Item*> throwAllItems() override;
     std::pair<bool, int> useMedKit() override;
     ~Operative() override = default;
 private:

@@ -66,6 +66,15 @@ int wildEntity::move() {
 
 // SmartEntity
 
+std::vector<Item*> SmartEntity::throwAllItems() {
+    if(activeWeapon) {
+        Weapon * swap = activeWeapon;
+        activeWeapon = nullptr;
+        return {swap};
+    }
+    return std::vector<Item*>(0);
+}
+
 SmartEntity::SmartEntity() : Attacking(0, 0) {}
 
 SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy) :
@@ -154,6 +163,10 @@ bool Furajire::addItem(Item *item) {
 
 bool Furajire::canKeeping(Item * item) {
     return dynamic_cast<Weapon*>(item);
+}
+
+std::vector<Item*> Furajire::throwAllItems() {
+    return inventory.throwAllItems();
 }
 
 // Operatives
@@ -250,4 +263,8 @@ bool Operative::addItem(Item* item) {
         return true;
     }
     return false;
+}
+
+std::vector<Item *> Operative::throwAllItems() {
+    return inventory_.throwAllItems();
 }

@@ -77,12 +77,15 @@ Item* Inventory::changeItem(Item *item, std::string const& name) {
     }
     throw std::runtime_error("\"" + name + "\" not found");
 }
-//Переделать
+
 std::vector<Item*> Inventory::throwAllItems() {
     std::vector<Item*> throwItems(0);
     for (int i = 0; i < inventory.size().first; ++i) {
         for (int j = 0; j < inventory.size().second; ++j) {
-
+            if(inventory[i][j] != nullptr) {
+                throwItems.push_back(inventory[i][j]);
+                inventory[i][j] = nullptr;
+            }
         }
     }
     return throwItems;
