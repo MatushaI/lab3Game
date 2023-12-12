@@ -1,7 +1,5 @@
 #include "gameServices.h"
 
-#include <__ranges/drop_view.h>
-
 std::vector<Item *> & Square::getItems() noexcept {
     return items;
 }
@@ -203,6 +201,98 @@ bool Level::deleteEntity(Entity* entity) {
     return false;
 }
 
+struct checkBarriersResult {
+    Entity *entity = nullptr;
+    size_t x;
+    size_t y;
+    bool inBorders = false;
+};
+
+checkBarriersResult checkBarriers(int viewingRadius, Directions const direction, size_t x_, size_t y_, Matrix<Square> & field) {
+    if(x_ >= field.getRows() || y_ >= field.getColumns()) {
+        return {nullptr, 0, 0, false};
+    }
+
+    switch (direction) {
+        case Directions::east : {
+            size_t border = field.getColumns() <= y_ + viewingRadius ? field.getColumns() : y_ + viewingRadius;
+            for (size_t i = y_; i < border; i++) {
+                if(i != y_) {
+                    if(field[x_][i].getEntity()) {
+                        return {field[x_][i].getEntity(), x_, i, true};
+                    } else if (field[x_][i].getSquareType() == SquareType::Barrier || field[x_][i].getSquareType() == SquareType::Window) {
+                        return {nullptr, x_, i, true};
+                    }
+                }
+            }
+           break;
+        }
+        case Directions::north : {
+            size_t border = field.getRows() <= x_ + viewingRadius ? field.getRows() : x_ + viewingRadius;
+            for (size_t i = x_; i < border; i++) {
+                if (i != x_) {
+                    if(field[i][y_].getEntity()) {
+                        return {field[i][y_].getEntity(), i, y_, true};
+                    } else if (field[i][y_].getSquareType() == SquareType::Barrier || field[i][y_].getSquareType() == SquareType::Window) {
+                        return {nullptr, i, y_, true};
+                    }
+                }
+            }
+        }
+        case Directions::west : {
+            size_t border = y_ > viewingRadius ? y_ - viewingRadius : 0;
+            for (size_t i = y_ + 1; i > border; i--) {
+                if(i != y_+ 1) {
+                    if(field[x_][i - 1].getEntity()) {
+                        return {field[x_][i - 1].getEntity(), x_, i - 1, true};
+                    } else if (field[x_][i - 1].getSquareType() == SquareType::Barrier || field[x_][i - 1].getSquareType() == SquareType::Window) {
+                        return {nullptr, x_, i - 1, true};
+                    }
+                }
+            }
+        }
+        case Directions::south : {
+            size_t border = x_ > viewingRadius ? x_ - viewingRadius : 0;
+            for (size_t i = x_ + 1; i > border; i--) {
+                if(i != x_ + 1) {
+                    if(field[i - 1][y_].getEntity()) {
+                        return {field[i - 1][y_].getEntity(), i - 1, y_, true};
+                    } else if (field[i - 1][y_].getSquareType() == SquareType::Barrier || field[i - 1][y_].getSquareType() == SquareType::Window) {
+                        return {nullptr, i - 1, y_, true};
+                    }
+                }
+            }
+        }
+    }
+    return {nullptr, 0 , 0 , false};
+}
+
+Entity* findNeighborhoodVictim(Directions const direction, size_t x_, size_t y_, Matrix<Square> & field) {
+    Entity * victim = nullptr;
+    switch (direction) {
+        case Directions::north : {
+            if(x_ == 0) { throw std::logic_error("first row and north"); }
+            victim = field[x_ - 1][y_].getEntity();
+            break;
+        }
+        case Directions::east : {
+            if(y_ == field.getColumns() - 1) {throw std::logic_error("end column and east");}
+            victim = field[x_][y_ + 1].getEntity();
+            break;
+        }
+        case Directions::south : {
+            if(x_ == field.getRows() - 1) {throw std::logic_error("end row and south"); }
+            victim = field[x_ + 1][y_].getEntity();
+            break;
+        }
+        case Directions::west : {
+            if(y_ == 0) {throw std::logic_error("first column and west"); }
+            victim = field[x_ - 1][y_].getEntity();
+            break;
+        }
+    }
+    return victim;
+}
 
 bool AttackService::attack(Entity* entity, Directions const direction){
 
@@ -212,33 +302,19 @@ bool AttackService::attack(Entity* entity, Directions const direction){
     } catch (std::exception &) {
         return false;
     }
+
     Entity* victim = nullptr;
-    switch (direction) {
-        case Directions::north : {
-            if(entityPos.first == 0) { throw std::logic_error("first row and north"); }
-            victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
-            break;
-        }
-        case Directions::east : {
-            if(entityPos.second == gameService->getLevel().getGameField().size().second - 1) {throw std::logic_error("end column and east");}
-            victim = gameService->getLevel().getGameField()[entityPos.first][entityPos.second + 1].getEntity();
-            break;
-        }
-        case Directions::south : {
-            if(entityPos.first == gameService->getLevel().getGameField().size().first - 1) {throw std::logic_error("end row and south"); }
-            victim = gameService->getLevel().getGameField()[entityPos.first + 1][entityPos.second].getEntity();
-            break;
-        }
-        case Directions::west : {
-            if(entityPos.second == 0) {throw std::logic_error("first column and west"); }
-            victim = gameService->getLevel().getGameField()[entityPos.first - 1][entityPos.second].getEntity();
-            break;
-        }
+    checkBarriersResult res;
+
+    if(dynamic_cast<SmartEntity*>(entity)) {
+        res = checkBarriers(entity->getViewingRadius(), direction, entityPos.first, entityPos.second, gameService->getLevel().getGameField());
+        victim = res.entity;
+    } else {
+        victim = findNeighborhoodVictim(direction, entityPos.first, entityPos.second, gameService->getLevel().getGameField());
     }
 
     if((dynamic_cast<Operative*>(victim) && dynamic_cast<Operative*>(entity)) ||
-        (!dynamic_cast<Operative*>(victim) && !dynamic_cast<Operative*>(entity)) ||
-        victim == nullptr) {
+        (!dynamic_cast<Operative*>(victim) && !dynamic_cast<Operative*>(entity))) {
         return false;
     }
 
@@ -246,10 +322,22 @@ bool AttackService::attack(Entity* entity, Directions const direction){
 
     int damage = attackingEntity->attack();
 
-    if(victim->getCurrentHealth() <= damage) {
-        gameService->getLevel().deleteEntity(victim);
-    } else {
-        victim->setHealth(victim->getCurrentHealth() - damage);
+    bool breakBorders = false;
+    if(res.inBorders == true && res.entity == nullptr && damage) {
+        gameService->getLevel().getGameField()[res.x][res.y].changeSquareType(SquareType::Floor);
+        breakBorders = true;
+    }
+
+    if(victim == nullptr) {
+        return false;
+    }
+
+    if(!breakBorders) {
+        if(victim->getCurrentHealth() <= damage) {
+            gameService->getLevel().deleteEntity(victim);
+        } else {
+            victim->setHealth(victim->getCurrentHealth() - damage);
+        }
     }
     return true;
 }
@@ -532,6 +620,8 @@ std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Sq
 
 void EntityAI::AITick() {
     std::vector<std::pair<size_t, size_t>> storagePoints = findStorages(game->getLevel().getGameField());
+
+
 
 }
 
