@@ -11,17 +11,17 @@ int main() {
     int argc = 0;
     QApplication *app = new QApplication(argc, nullptr);
 
-    mainwindow * mainView = new mainwindow();
-    mainView->resize(500, 500);
-    mainView->setWindowTitle("hui");
+    auto * game = new GameService();
+    auto * move = new MoveService(game);
+
+    mainwindow * mainView = new mainwindow(nullptr, game);
+    //mainView->resize(500, 500);
+    mainView->setWindowTitle("Cops and monsters");
     mainView->show();
-
-
 
     //auto * oper = new Furajire("aboba", 40, 40, 40, 20, 10, 10);
     //std::cout << oper->getName();
-    auto * game = new GameService();
-    auto * move = new MoveService(game);
+
 
     auto * gun = new Weapon("boooom", "AK-47");
     auto * wildGun = new Weapon("boooom2", "MachineGun");
@@ -30,8 +30,11 @@ int main() {
         move->gameService->getLevel().getGameField()[i][4].changeSquareType(SquareType::Wall);
     }
     //move->gameService->getLevel().setSize(100, 100);
-    move->gameService->getLevel().setSize(10, 10);
+    move->gameService->getLevel().setSize(100, 100);
     move->gameService->getLevel().getGameField()[6][5].changeSquareType(SquareType::Floor);
+    move->gameService->getLevel().getGameField()[7][8].changeSquareType(SquareType::Window);
+    move->gameService->getLevel().getGameField()[6][9].changeSquareType(SquareType::Barrier);
+    move->gameService->getLevel().getGameField()[1][2].changeSquareType(SquareType::Storage);
 
     auto * wildAboba = new SmartEntity("chushka", 100, 100, 30, 30, 100, 0.5);
     auto * oper = new Operative("Churka", 31, 100, 30, 30, 100, 0.5);
@@ -53,6 +56,8 @@ int main() {
     attack_service->attack(oper, Directions::south);
     std::cout << wildAboba->getCurrentHealth() << std::endl;
     std::cout << move->gameService->getLevel().getGameField()[4][5].getItems()[0]->getName();
+
+    mainView->drawMap();
 
     move->gameService->getLevel().getGameField()[3][9].changeSquareType(SquareType::Wall);
     //move->gameService->getLevel().getGameField()[3][2].changeSquareType(SquareType::Wall);

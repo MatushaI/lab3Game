@@ -129,7 +129,7 @@ bool Level::deleteEntity(Entity* entity) {
 */
 
 GameService::GameService() {
-    int x = 10, y = 10;
+    int x = 15, y = 15;
     level.setSize(x, y);
     for (int i = 0; i < x; i++) {
         for (int j = 0; j < y; j++) {

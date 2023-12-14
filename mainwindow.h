@@ -6,7 +6,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-
+#include "gameServices.h"
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class mainwindow; }
@@ -16,11 +17,15 @@ class mainwindow : public QMainWindow {
 Q_OBJECT
 
 public:
-    explicit mainwindow(QWidget *parent = nullptr);
+    mainwindow(QWidget *parent = nullptr, GameService * game = nullptr);
+    void drawMap();
     ~mainwindow() override;
-
 private:
     Ui::mainwindow *ui;
+    GameService * game_ = nullptr;
+    QMap<QString, QPixmap> textures;
+private slots:
+
 };
 
 
