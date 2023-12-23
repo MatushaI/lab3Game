@@ -13,6 +13,15 @@ bool Entity::setHealth(int count) {
     return true;
 }
 
+bool Entity::setTime(int time) {
+    if(time > maxTime_) {
+        return false;
+    } else {
+        currentTime_ = time;
+    }
+}
+
+
 std::string const& Entity::getName() noexcept { return name_; }
 int Entity::getCurrentHealth() const noexcept { return currentHealth_; }
 int Entity::getMaxHealth() const noexcept { return maxHealth_; }

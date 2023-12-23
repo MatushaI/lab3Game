@@ -14,72 +14,63 @@ int main() {
     auto * game = new GameService();
     auto * move = new MoveService(game);
 
-    mainwindow * mainView = new mainwindow(nullptr, game);
-    //mainView->resize(500, 500);
-    mainView->setWindowTitle("Cops and monsters");
-    mainView->show();
-
     //auto * oper = new Furajire("aboba", 40, 40, 40, 20, 10, 10);
     //std::cout << oper->getName();
-
 
     auto * gun = new Weapon("boooom", "AK-47");
     auto * wildGun = new Weapon("boooom2", "MachineGun");
 
     for (int i = 0; i < 9; i++) {
-        move->gameService->getLevel().getGameField()[i][4].changeSquareType(SquareType::Wall);
+        move->gameService->getLevel().getGameField()[i][4]->changeSquareType(SquareType::Barrier);
+    }
+    for (int i = 4; i < 15; i++) {
+        move->gameService->getLevel().getGameField()[10][i]->changeSquareType(SquareType::Wall);
     }
     //move->gameService->getLevel().setSize(100, 100);
-    move->gameService->getLevel().setSize(100, 100);
-    move->gameService->getLevel().getGameField()[6][5].changeSquareType(SquareType::Floor);
-    move->gameService->getLevel().getGameField()[7][8].changeSquareType(SquareType::Window);
-    move->gameService->getLevel().getGameField()[6][9].changeSquareType(SquareType::Barrier);
-    move->gameService->getLevel().getGameField()[1][2].changeSquareType(SquareType::Storage);
+    //move->gameService->getLevel().setSize(100, 100);
+    move->gameService->getLevel().getGameField()[6][5]->changeSquareType(SquareType::Floor);
+    move->gameService->getLevel().getGameField()[7][8]->changeSquareType(SquareType::Window);
+    move->gameService->getLevel().getGameField()[6][9]->changeSquareType(SquareType::Barrier);
+    move->gameService->getLevel().getGameField()[1][2]->changeSquareType(SquareType::Storage);
 
-    auto * wildAboba = new SmartEntity("chushka", 100, 100, 30, 30, 100, 0.5);
-    auto * oper = new Operative("Churka", 31, 100, 30, 30, 100, 0.5);
+    auto * wildAboba = new wildEntity("chushka", 100, 10000, 3, 30, 100, 0.5, 20);
+    auto * oper = new Operative("Churka", 31, 1000, 30, 30, 100, 0.5);
 
-    gun->setCurrentCartridges(50);
+    gun->setCurrentCartridges(1);
     oper->addActiveItem(gun);
     wildGun->setCurrentCartridges(50);
-    wildAboba->addItem(wildGun);
+    //wildAboba->addItem(wildGun);
+
+    EntityAI ai(game, move);
+
 
     auto * attack_service = new AttackService(game);
     game->getLevel().addEntity(wildAboba, 4, 5);
-    game->getLevel().addEntity(oper, 8, 5);
-
+    game->getLevel().addEntity(oper, 6, 5);
+    ai.AITick();
     entityScanerRadius(wildAboba, 0, 0, game->getLevel().getGameField());
 
     std::cout << wildAboba->getCurrentHealth() << std::endl;
-    attack_service->attack(oper, Directions::south);
-    attack_service->attack(oper, Directions::south);
-    attack_service->attack(oper, Directions::south);
+    std::cout << wildAboba->getCurrentTime() << std::endl;
+    //attack_service->attack(oper, Directions::east);
+    //attack_service->attack(oper, Directions::west);
+    attack_service->attack(oper, Directions::north);
     std::cout << wildAboba->getCurrentHealth() << std::endl;
-    std::cout << move->gameService->getLevel().getGameField()[4][5].getItems()[0]->getName();
+    //std::cout << move->gameService->getLevel().getGameField()[4][5].getItems()[0]->getName();
 
+    auto * mainView = new mainwindow(nullptr, game);
+    mainView->resize(1000, 1000);
+    mainView->show();
     mainView->drawMap();
-
-    move->gameService->getLevel().getGameField()[3][9].changeSquareType(SquareType::Wall);
+    move->gameService->getLevel().getGameField()[3][9]->changeSquareType(SquareType::Wall);
     //move->gameService->getLevel().getGameField()[3][2].changeSquareType(SquareType::Wall);
     std::vector<Square*> res = move->findMinWay(0, 0, 9, 9);
 
     //std::cout << viewingObjectArea(0, 3, 3, 0, game->getLevel().getGameField()) << std::endl;
-/*
-    for (int i = 0; i < move->gameService->getLevel().size().first; i++) {
-        for (int j = 0; j < move->gameService->getLevel().size().second; ++j) {
-            auto l = std::find(res.begin(), res.end(), &move->gameService->getLevel().getGameField()[i][j]);
-            if(l != res.end()) {
-                std::cout << "🟩";
-            } else if(move->gameService->getLevel().getGameField()[i][j].getSquareType() == SquareType::Wall) {
-                std::cout << "⬛";
-            } else {
-                std::cout << "⬜";
-            }
-        }
-        std::cout << "\n";
-    }
-*/
+
     return app->exec();
+
+    //return app->exec();
     return 0;
 }
 

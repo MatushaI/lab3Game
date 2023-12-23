@@ -47,6 +47,7 @@ public:
     [[nodiscard]] int getMoveTime() const noexcept;
     [[nodiscard]] int getViewingRadius() const noexcept;
     bool setHealth(int count);
+    bool setTime(int time);
     void updateCurrentTime();
 
     virtual int move() = 0;

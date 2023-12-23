@@ -8,6 +8,8 @@
 #include <QMainWindow>
 #include "gameServices.h"
 #include <QMap>
+#include <QPushButton>
+#include <ui_mainwindow.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class mainwindow; }
@@ -27,6 +29,5 @@ private:
 private slots:
 
 };
-
 
 #endif //MAINWINDOW_H

@@ -1,9 +1,12 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QPixmap>
+#include <QDesktopServices>
 
 mainwindow::mainwindow(QWidget *parent, GameService * game) :
     QMainWindow(parent), ui(new Ui::mainwindow) {
+    this->setWindowTitle("Cops and monsters");
+
     ui->setupUi(this);
     game_ = game;
 
@@ -13,7 +16,6 @@ mainwindow::mainwindow(QWidget *parent, GameService * game) :
     ui->tableWidget->setRowCount(game->getLevel().size().first);
     ui->tableWidget->setColumnCount(game->getLevel().size().second);
     ui->tableWidget->resize(w * game->getLevel().size().second,h * game->getLevel().size().first);
-
 
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->tableWidget->setFocusPolicy(Qt::NoFocus);
@@ -38,37 +40,45 @@ mainwindow::mainwindow(QWidget *parent, GameService * game) :
 void mainwindow::drawMap() {
     for (int i = 0; i < game_->getLevel().size().first; i++) {
         for (int j = 0; j < game_->getLevel().size().second; j++) {
+            QString squareTypeName;
+                switch (game_->getLevel().getGameField()[i][j]->getSquareType()) {
+                    case SquareType::Wall : {
+                        squareTypeName = "wall";
+                        break;
+                    }
+                    case SquareType::Floor : {
+                        squareTypeName = "floor";
+                        break;
+                    }
+                    case SquareType::Storage : {
+                        squareTypeName = "storage";
+                        break;
+                    }
+                    case SquareType::Window : {
+                        squareTypeName = "window";
+                        break;
+                    }
+                    case SquareType::Barrier : {
+                        squareTypeName = "barrier";
+                        break;
+                    }
+                    case SquareType::NoType : {
+                        squareTypeName = "noType";
+                        break;
+                    }
+                }
+
             auto tbl = new QTableWidgetItem();
-            switch (game_->getLevel().getGameField()[i][j].getSquareType()) {
-                case SquareType::Wall : {
-                    tbl->setData(Qt::BackgroundRole, textures["wall"]);
-                    break;
-                }
-                case SquareType::Floor : {
-                    tbl->setData(Qt::BackgroundRole, textures["floor"]);
-                    break;
-                }
-                case SquareType::Storage : {
-                    tbl->setData(Qt::BackgroundRole, textures["storage"]);
-                    break;
-                }
-                case SquareType::Window : {
-                    tbl->setData(Qt::BackgroundRole, textures["window"]);
-                    break;
-                }
-                case SquareType::Barrier : {
-                    tbl->setData(Qt::BackgroundRole, textures["barrier"]);
-                    break;
-                }
-                case SquareType::NoType : {
-                    tbl->setData(Qt::BackgroundRole, textures["noType"]);
-                    break;
-                }
-            }
+            tbl->setData(Qt::BackgroundRole, textures[squareTypeName]);
             ui->tableWidget->setItem(i, j, tbl);
         }
     }
     ui->tableWidget->show();
+    ui->progressBar->setMinimum(0);
+    ui->progressBar->setMaximum(game_->getLevel().getGameField()[6][5]->getEntity()->getMaxTime());
+    ui->progressBar->setValue(game_->getLevel().getGameField()[6][5]->getEntity()->getCurrentTime());
+
+
 }
 
 mainwindow::~mainwindow() {
