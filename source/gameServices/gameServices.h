@@ -6,6 +6,7 @@
 #include "items.h"
 #include <set>
 #include <queue>
+#include <memory>
 
 enum class SquareType {
     Floor,
@@ -60,37 +61,37 @@ public:
     GameService();
     bool upload();
     bool load();
-    Level & getLevel() {return level;} // для отладки
+    Level & getLevel() {return level;}
 protected:
     Level level;
 };
 
+[[nodiscard]] std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2, Level & level);
+
 class AttackService {
 public:
-    explicit AttackService(GameService * game);
+    explicit AttackService(std::shared_ptr<GameService> const& game);
     bool attack(Entity * entity, Directions direction);
-    GameService * gameService = nullptr; // убрать
+protected:
+    std::shared_ptr<GameService> gameService_;
 };
-
-
 
 class MoveService {
 public:
-    explicit MoveService(GameService * game);
-    MoveService() = default;
-    [[nodiscard]] std::vector<Square*> findMinWay(size_t x1, size_t y1, size_t x2, size_t y2) const;
+    MoveService(std::shared_ptr<GameService> const& game);
+    bool findAttackingNoSmart(Entity * entity);
+    void walkingNearestAttackingEntities();
     bool move(Entity * entity, Directions direction);
-
-    GameService *gameService = nullptr;
+protected:
+    std::shared_ptr<GameService> gameService_;
 };
 
-class EntityAI {
+class EntityAI : public MoveService, public AttackService {
 public:
-    explicit EntityAI(GameService * game, MoveService * moveS);
+    explicit EntityAI(std::shared_ptr<GameService> const& game);
     void AITick();
 private:
-    GameService * game = nullptr;
-    MoveService * moveS = nullptr;
+
 };
 
 std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Square*> & field);
