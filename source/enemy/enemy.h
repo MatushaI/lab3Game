@@ -20,10 +20,12 @@ public:
     virtual int attack() = 0;
     int getDamage();
     double getAccuracy();
+    [[nodiscard]] virtual int getAttackTime() const;
     virtual ~Attacking() = default;
 protected:
     int damage;
     double accuracy;
+    int attackTime;
 };
 
 class MedKitUsed {
@@ -69,8 +71,6 @@ public:
     int attack() override;
     int move() override;
     ~wildEntity() override = default;
-private:
-    int attackTime;
 };
 
 class SmartEntity : public Entity, public ActionItem, public Attacking { // Добавить новый

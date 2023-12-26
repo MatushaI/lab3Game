@@ -74,9 +74,9 @@ void mainwindow::drawMap() {
         }
     }
     ui->tableWidget->show();
-    ui->progressBar->setMinimum(0);
-    ui->progressBar->setMaximum(game_->getLevel().getGameField()[6][5]->getEntity()->getMaxTime());
-    ui->progressBar->setValue(game_->getLevel().getGameField()[6][5]->getEntity()->getCurrentTime());
+    //ui->progressBar->setMinimum(0);
+    //ui->progressBar->setMaximum(game_->getLevel().getGameField()[6][5]->getEntity()->getMaxTime());
+    //ui->progressBar->setValue(game_->getLevel().getGameField()[6][5]->getEntity()->getCurrentTime());
 
 
 }

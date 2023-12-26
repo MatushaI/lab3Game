@@ -1,5 +1,9 @@
 #include "enemy.h"
 
+int Attacking::getAttackTime() const {
+    return attackTime;
+}
+
 Entity::Entity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius) :
 name_(name), maxHealth_(maxHealth), maxTime_(maxTime), moveTime_(moveTime), viewingRadius_(viewingRadius) {
     currentHealth_ = maxHealth;
@@ -45,12 +49,13 @@ double Attacking::getAccuracy() { return accuracy; }
 
 // wildEntity
 
-wildEntity::wildEntity() : Attacking(0, 0), attackTime(0) {}
+wildEntity::wildEntity() : Attacking(0, 0) {}
 
 wildEntity::wildEntity(std::string const&name, int maxHealth, int maxTime, int moveTime,
-    int viewingRadius, int damage, double accuracy, int attackTime) :
+    int viewingRadius, int damage, double accuracy, int attackTime_) :
     Attacking(damage, accuracy),
-    Entity(name, maxHealth, maxTime, moveTime, viewingRadius), attackTime(attackTime) {
+    Entity(name, maxHealth, maxTime, moveTime, viewingRadius) {
+    attackTime = attackTime_;
     currentTime_ = maxTime;
     currentHealth_ = maxHealth;
 }
