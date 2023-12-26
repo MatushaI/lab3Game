@@ -6,6 +6,21 @@ std::vector<Item *> & Square::getItems() noexcept {
     return items;
 }
 
+std::vector<Item*> Square::deleteAllItems() noexcept {
+    auto items_ = items;
+    items = std::vector<Item*>(0);
+    return items_;
+}
+
+Item* Square::deleteItem(std::string const& name) noexcept {
+    auto findItem =  std::find_if(items.begin(), items.end(), [&](Item * item){return item->getName() == name; });
+    if(findItem == items.end()) {
+        return nullptr;
+    }
+    items.erase(findItem);
+    return *findItem;
+}
+
 SquareType Square::getSquareType() const {
     return type;
 }
@@ -77,9 +92,17 @@ void Level::setSquareType(SquareType const type, size_t const x, size_t const y)
     }
 }
 
-std::vector<Item*> Level::deleteItemFromSquare(size_t const x, size_t const y) {
+std::vector<Item*> Level::deleteItemsFromSquare(size_t const x, size_t const y) {
     if(x < gameField.size().first && y < gameField.size().second) {
         return std::move(gameField[x][y]->getItems());
+    } else {
+        throw std::logic_error("more i or j in gameField");
+    }
+}
+
+Item* Level::deleteItemFromSquare(size_t const x, size_t const y, std::string const& name) {
+    if(x < gameField.size().first && y < gameField.size().second) {
+        return gameField[x][y]->deleteItem(name);
     } else {
         throw std::logic_error("more i or j in gameField");
     }
@@ -839,13 +862,15 @@ bool EntityAI::findAttackingNoSmart(Entity* entity) {
         }
 
         visited[coordinates.first][coordinates.second] = true;
-        switch (direction) {
-            case 0 : {move(entity, Directions::north); coordinates.first--; break; }
-            case 1 : {move(entity, Directions::east); coordinates.second++; break; }
-            case 2 : {move(entity, Directions::south); coordinates.first++; break; }
-            case 3 : {move(entity, Directions::west); coordinates.second--; break; }
-            default : break;
-        }
+        try {
+            switch (direction) {
+                case 0 : {move(entity, Directions::north); coordinates.first--; break; }
+                case 1 : {move(entity, Directions::east); coordinates.second++; break; }
+                case 2 : {move(entity, Directions::south); coordinates.first++; break; }
+                case 3 : {move(entity, Directions::west); coordinates.second--; break; }
+                default : break;
+            }
+        } catch (std::exception const&) {return true;}
     }
     return true;
 }
@@ -957,6 +982,49 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
     return {res.first, res.second, dir, minPath, true};
 }
 
+Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
+
+    auto toSmart = dynamic_cast<SmartEntity*>(entity);
+    std::pair<size_t, size_t> coordinates = findPos(toSmart, gameService_->getLevel().getGameField());
+
+    Weapon * weapon = nullptr;
+    auto storages = findStorages(gameService_->getLevel().getGameField());
+    std::vector<size_t> storagePaths(storages.size());
+    for (int j = 0; j < storages.size(); j++) {
+        auto path = findMinWay(coordinates.first, coordinates.second, storages[j].first, storages[j].second, gameService_->getLevel());
+        if(!path.empty()) {}
+        storagePaths[j] = path.size();
+    }
+
+    if(!storagePaths.empty()) {
+        size_t minIndex = 0;
+        size_t minPath = SIZE_T_MAX;
+        for (int j = 0; j < storagePaths.size(); j++) {
+            if(storagePaths[j] < minPath && storagePaths[j] >= 1 && gameService_->getLevel().getGameField()[storages[j].first][storages[j].second]->getEntity() == nullptr) {minPath = storagePaths[j]; minIndex = j; }
+        }
+
+        if(minPath != SIZE_T_MAX) {
+            if((minPath - 1) * toSmart->getMoveTime() < toSmart->getCurrentTime()) {
+                deleteEntityFromField(toSmart, gameService_->getLevel().getGameField());
+                gameService_->getLevel().addEntity(toSmart, storages[minIndex].first, storages[minIndex].second);
+                toSmart->setTime(toSmart->getCurrentTime() - toSmart->getMoveTime() * (minPath - 1));
+                auto items = gameService_->getLevel().getGameField()[storages[minIndex].first][storages[minIndex].second]->getItems();
+                for (auto j : items) {
+                    if(dynamic_cast<Weapon*>(j)) {
+                        if(dynamic_cast<Weapon*>(j)->getCurrentCartridges()) {
+                            gameService_->getLevel().deleteItemFromSquare(storages[minIndex].first, storages[minIndex].second,  j->getName());
+                            weapon = dynamic_cast<Weapon*>(j);
+                            break;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+    return weapon;
+}
+
 void EntityAI::walkingAttackingEntities() {
     Level & level = gameService_->getLevel();
 
@@ -987,74 +1055,90 @@ void EntityAI::walkingAttackingEntities() {
                     } else { break; }
                 }
 
+                auto smart = dynamic_cast<SmartEntity*>(i);
+                if(smart->getActiveWeapon()) {
+                    if(smart->getActiveWeapon()->getCurrentCartridges() == 0) {
+                        smart->throwAllItems();
+                        Weapon *weapon = findWeaponInStorages(smart);
+                        if(weapon) {smart->addItem(weapon);}
+                    }
+                } else {
+                    Weapon *weapon = findWeaponInStorages(smart);
+                    if(weapon) {smart->addItem(weapon);}
+                }
+
+                coordinates = findPos(i, gameService_->getLevel().getGameField());
+
                 std::vector<char> aroundSquares(4); //north, east, south, west
+
                 if(checkSquareWithEntities(coordinates.first - 1, coordinates.second, level.getGameField(),
         {SquareType::Floor, SquareType::Storage})) {
-            aroundSquares[0] = visited[coordinates.first - 1][coordinates.second] ? 1 : 0;
-        } else {
-            aroundSquares[0] = 2;
-        }
-
-        if(checkSquareWithEntities(coordinates.first, coordinates.second + 1, level.getGameField(),
-        {SquareType::Floor, SquareType::Storage})) {
-            aroundSquares[1] = visited[coordinates.first][coordinates.second + 1] ? 1 : 0;
-        } else {
-            aroundSquares[1] = 2;
-        }
-
-        if(checkSquareWithEntities(coordinates.first + 1, coordinates.second, level.getGameField(),
-        {SquareType::Floor, SquareType::Storage})) {
-            aroundSquares[2] = visited[coordinates.first + 1][coordinates.second] ? 1 : 0;
-        } else {
-            aroundSquares[2] = 2;
-        }
-
-        if(checkSquareWithEntities(coordinates.first, coordinates.second - 1, level.getGameField(),
-        {SquareType::Floor, SquareType::Storage})) {
-            aroundSquares[3] = visited[coordinates.first][coordinates.second - 1] ? 1 : 0;
-        } else {
-            aroundSquares[3] = 2;
-        }
-
-        size_t countFreeSquares = 0;
-        size_t countBarriers = 0;
-        countFreeSquares = std::count(aroundSquares.begin(), aroundSquares.end(), 0);
-        countBarriers = std::count(aroundSquares.begin(), aroundSquares.end(), 2);
-
-        int direction = 0;
-        if(countFreeSquares) {
-            int randomDirection = rand() % countFreeSquares;
-            int counter = -1;
-            for (int j = 0; j < aroundSquares.size(); j++) {
-                if(counter < randomDirection && aroundSquares[j] == 0) { counter++; }
-                if(counter == randomDirection) {
-                    direction = j;
-                    break;
+                    aroundSquares[0] = visited[coordinates.first - 1][coordinates.second] ? 1 : 0;
+                } else {
+                    aroundSquares[0] = 2;
                 }
-            }
-        } else if(countBarriers != 4) {
-            int randomDirection = rand() % (4 - countBarriers);
-            int counter = -1;
-            for (int j = 0; j < aroundSquares.size(); j++) {
-                if(counter < randomDirection && (aroundSquares[j] == 1 || aroundSquares[j] == 0)) { counter++; }
-                if(counter == randomDirection) {
-                    direction = j;
-                    break;
+
+                if(checkSquareWithEntities(coordinates.first, coordinates.second + 1, level.getGameField(),
+                {SquareType::Floor, SquareType::Storage})) {
+                    aroundSquares[1] = visited[coordinates.first][coordinates.second + 1] ? 1 : 0;
+                } else {
+                    aroundSquares[1] = 2;
                 }
-            }
-        } else {
-            return;
-        }
 
-        visited[coordinates.first][coordinates.second] = true;
-        switch (direction) {
-            case 0 : {move(i, Directions::north); coordinates.first--; break; }
-            case 1 : {move(i, Directions::east); coordinates.second++; break; }
-            case 2 : {move(i, Directions::south); coordinates.first++; break; }
-            case 3 : {move(i, Directions::west); coordinates.second--; break; }
-            default : break;
-        }
+                if(checkSquareWithEntities(coordinates.first + 1, coordinates.second, level.getGameField(),
+                {SquareType::Floor, SquareType::Storage})) {
+                    aroundSquares[2] = visited[coordinates.first + 1][coordinates.second] ? 1 : 0;
+                } else {
+                    aroundSquares[2] = 2;
+                }
 
+                if(checkSquareWithEntities(coordinates.first, coordinates.second - 1, level.getGameField(),
+                {SquareType::Floor, SquareType::Storage})) {
+                    aroundSquares[3] = visited[coordinates.first][coordinates.second - 1] ? 1 : 0;
+                } else {
+                    aroundSquares[3] = 2;
+                }
+
+                size_t countFreeSquares = 0;
+                size_t countBarriers = 0;
+                countFreeSquares = std::count(aroundSquares.begin(), aroundSquares.end(), 0);
+                countBarriers = std::count(aroundSquares.begin(), aroundSquares.end(), 2);
+
+                int direction = 0;
+                if(countFreeSquares) {
+                    int randomDirection = rand() % countFreeSquares;
+                    int counter = -1;
+                    for (int j = 0; j < aroundSquares.size(); j++) {
+                        if(counter < randomDirection && aroundSquares[j] == 0) { counter++; }
+                        if(counter == randomDirection) {
+                            direction = j;
+                            break;
+                        }
+                    }
+                } else if(countBarriers != 4) {
+                    int randomDirection = rand() % (4 - countBarriers);
+                    int counter = -1;
+                    for (int j = 0; j < aroundSquares.size(); j++) {
+                        if(counter < randomDirection && (aroundSquares[j] == 1 || aroundSquares[j] == 0)) { counter++; }
+                        if(counter == randomDirection) {
+                            direction = j;
+                            break;
+                        }
+                    }
+                } else {
+                    return;
+                }
+
+                visited[coordinates.first][coordinates.second] = true;
+                try {
+                    switch (direction) {
+                        case 0 : {move(i, Directions::north); coordinates.first--; break; }
+                        case 1 : {move(i, Directions::east); coordinates.second++; break; }
+                        case 2 : {move(i, Directions::south); coordinates.first++; break; }
+                        case 3 : {move(i, Directions::west); coordinates.second--; break; }
+                        default : break;
+                    }
+                } catch (std::exception const&) {return;}
             }
         }
     }
@@ -1071,7 +1155,7 @@ void EntityAI::AITick() {
     //FirePlace fire =  findFirePlace(*gameService_->getLevel().getMonsters().begin(), *gameService_->getLevel().getOperatives().begin());
     //std::cout << "B: " << fire.x_ << " " << fire.y_ << " " << (int)fire.directions_ << std::endl;
     walkingAttackingEntities();
-    walkingNearestAttackingEntities();
+    //walkingNearestAttackingEntities();
 
 
 }

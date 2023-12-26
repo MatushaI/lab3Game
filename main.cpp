@@ -33,13 +33,18 @@ int main() {
     level.getGameField()[6][9]->changeSquareType(SquareType::Barrier);
     level.getGameField()[1][2]->changeSquareType(SquareType::Storage);
 
-    auto * wildAboba = new SmartEntity("chushka", 100, 400, 3, 30, 100, 0.5);
+    auto * wildAboba = new SmartEntity("chushka", 100, 401, 3, 30, 100, 0.5);
     auto * oper = new Operative("Churka", 2000, 1000, 30, 30, 100, 0.5);
+
+
+    wildGun->setCurrentCartridges(300);
+    level.addItemToSquare(wildGun, 1, 2);
 
     gun->setCurrentCartridges(40);
     oper->addActiveItem(gun);
-    wildGun->setCurrentCartridges(300);
-    wildAboba->addItem(wildGun);
+
+
+    //wildAboba->addItem(wildGun);
 
     game->getLevel().addEntity(wildAboba, 4, 5);
     level.getGameField()[5][5]->changeSquareType(SquareType::Window);
