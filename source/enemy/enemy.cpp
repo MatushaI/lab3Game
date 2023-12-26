@@ -91,7 +91,7 @@ std::vector<Item*> SmartEntity::throwAllItems() {
 SmartEntity::SmartEntity() : Attacking(0, 0) {}
 
 SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy) :
-Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy) {}
+Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy) { currentTime_ = maxTime; }
 
 int SmartEntity::move() {
     if(currentTime_ < moveTime_) {
@@ -141,6 +141,11 @@ int SmartEntity::attack() {
 Weapon* SmartEntity::getActiveWeapon() {
     return activeWeapon;
 }
+
+int SmartEntity::getAttackTime() const {
+    return activeWeapon ? activeWeapon->getShotTime() : 0;
+}
+
 
 Furajire::Furajire(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, size_t x, size_t y) :
 Entity(name, maxHealth, maxTime, moveTime, viewingRadius), inventory(x, y)   {}

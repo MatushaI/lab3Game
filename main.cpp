@@ -33,26 +33,26 @@ int main() {
     level.getGameField()[6][9]->changeSquareType(SquareType::Barrier);
     level.getGameField()[1][2]->changeSquareType(SquareType::Storage);
 
-    auto * wildAboba = new wildEntity("chushka", 100, 100, 3, 30, 100, 0.5, 20);
-    auto * oper = new Operative("Churka", 3100, 1000, 30, 30, 100, 0.5);
+    auto * wildAboba = new SmartEntity("chushka", 100, 400, 3, 30, 100, 0.5);
+    auto * oper = new Operative("Churka", 2000, 1000, 30, 30, 100, 0.5);
 
-    gun->setCurrentCartridges(3);
+    gun->setCurrentCartridges(40);
     oper->addActiveItem(gun);
-    wildGun->setCurrentCartridges(50);
-    //wildAboba->addItem(wildGun);
+    wildGun->setCurrentCartridges(300);
+    wildAboba->addItem(wildGun);
 
     game->getLevel().addEntity(wildAboba, 4, 5);
-    level.getGameField()[5][5]->changeSquareType(SquareType::Wall);
+    level.getGameField()[5][5]->changeSquareType(SquareType::Window);
     //level.getGameField()[3][5]->changeSquareType(SquareType::Barrier);
-    level.getGameField()[4][4]->changeSquareType(SquareType::Wall);
-    level.getGameField()[4][6]->changeSquareType(SquareType::Wall);
+    level.getGameField()[4][4]->changeSquareType(SquareType::Window);
+    level.getGameField()[4][6]->changeSquareType(SquareType::Window);
     game->getLevel().addEntity(oper, 6, 5);
 
     entityScanerRadius(wildAboba, 0, 0, game->getLevel().getGameField());
 
     auto ai = EntityAI(game);
     ai.AITick();
-
+    //std::cout << wildGun->getCurrentCartridges();
     std::cout << "A: " << oper->getCurrentHealth() << std::endl;
 
     std::cout << wildAboba->getCurrentHealth() << std::endl;

@@ -85,6 +85,7 @@ public:
     Weapon * getActiveWeapon();
     std::vector<Item*> throwAllItems() override;
     bool canKeeping(Item * item) override;
+    int getAttackTime() const override;
     ~SmartEntity() override = default;
 protected:
     Weapon * activeWeapon = nullptr;

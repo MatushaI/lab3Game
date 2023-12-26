@@ -1,5 +1,6 @@
 #include "gameServices.h"
 #include <algorithm>
+#include <map>
 
 std::vector<Item *> & Square::getItems() noexcept {
     return items;
@@ -403,6 +404,8 @@ bool AttackService::attack(Entity* entity, Directions const direction){
 
     int damage = attackingEntity->attack();
 
+    if(!damage) {return false;}
+
     bool breakBorders = false;
     if(res.inBorders == true && res.entity == nullptr && damage) {
         level.getGameField()[res.x][res.y]->changeSquareType(SquareType::Floor);
@@ -763,19 +766,17 @@ bool EntityAI::findAttackingNoSmart(Entity* entity) {
                 if(path.size() <= 2) {
                     return true;
                 }
+                deleteEntityFromField(entity, level.getGameField());
+                std::pair<size_t, size_t> victimPos;
                 if(i->getMoveTime() * (path.size() - 2) > i->getCurrentTime()) {
-                    deleteEntityFromField(entity, level.getGameField());
-                    std::pair<size_t, size_t> victimPos = level.findSquare(path[i->getCurrentTime()/i->getMoveTime()]);
-                    level.addEntity(entity, victimPos.first, victimPos.second);
+                    victimPos = level.findSquare(path[i->getCurrentTime()/i->getMoveTime()]);
                     entity->setTime(entity->getCurrentTime() - entity->getMoveTime() * (i->getCurrentTime()/i->getMoveTime()));
-                    return true;
                 } else {
-                    deleteEntityFromField(entity, level.getGameField());
-                    std::pair<size_t, size_t> victimPos = level.findSquare(path[1]);
-                    level.addEntity(entity, victimPos.first, victimPos.second);
+                    victimPos = level.findSquare(path[1]);
                     entity->setTime(entity->getCurrentTime() - entity->getMoveTime() * (path.size() - 2));
-                    return true;
                 }
+                level.addEntity(entity, victimPos.first, victimPos.second);
+                return true;
             }
         }
 
@@ -943,23 +944,122 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
         if(!checkSquare(victimPos.first, i, gameService_->getLevel().getGameField(), {SquareType::Floor, SquareType::Storage})) { break; }
         auto path = findMinWay(entityPos.first, entityPos.second, victimPos.first, i, gameService_->getLevel());
         if(path.size() < lpath + 2) { lpath = path.size() > 2 ? path.size() - 2 : 0; res = {victimPos.first, i}; }
-        std::cout << "B: " << lpath << std::endl;
     }
 
     if(lpath < minPath) {
         minPath = lpath;
         dir = Directions::west;
     }
-/*
+
     if(minPath == INT_MAX) {
-        throw std::runtime_error("no path to fire");
-    } */
-    return {res.first, res.second, dir, true};
+        return {res.first, res.second, dir, minPath, false};
+    }
+    return {res.first, res.second, dir, minPath, true};
 }
 
 void EntityAI::walkingAttackingEntities() {
+    Level & level = gameService_->getLevel();
 
+    Matrix<bool> visited(level.size().first, level.size().second, false);
+
+    for (auto & i : level.getMonsters()) {
+        if(dynamic_cast<SmartEntity*>(i)) {
+            std::pair<size_t, size_t> coordinates = findPos(i, level.getGameField());
+            while (i->getMoveTime() < i->getCurrentTime() || dynamic_cast<SmartEntity*>(i)->getAttackTime() <= i->getCurrentTime()) {
+                auto entityPos = findPos(i, gameService_->getLevel().getGameField());
+                auto entitiesAround =  entityScanerRadius(i, entityPos.first, entityPos.second, gameService_->getLevel().getGameField());
+                for (auto j : entitiesAround) { if(!gameService_->getLevel().getMonsters().count(j))
+                    { std::erase_if(entitiesAround, [&](Entity * ent){return !gameService_->getLevel().getOperatives().count(ent); } ); } }
+                for (auto j : entitiesAround) {
+                    auto pathRes = findFirePlace(i, j);
+                    if(pathRes.result) {
+                        try {
+                            if(pathRes.lenght * i->getMoveTime() <= i->getCurrentTime()) {
+                                i->setTime(i->getCurrentTime() - pathRes.lenght * i->getMoveTime());
+                                deleteEntityFromField(i, gameService_->getLevel().getGameField());
+                                gameService_->getLevel().addEntity(i, pathRes.x_, pathRes.y_);
+                                coordinates = {pathRes.x_, pathRes.y_};
+                                while (i->getCurrentTime() > dynamic_cast<SmartEntity*>(i)->getAttackTime()) {
+                                    if(!attack(i, pathRes.directions_)) { break;}
+                                }
+                            }
+                        } catch (std::exception const&) {}
+                    } else { break; }
+                }
+
+                std::vector<char> aroundSquares(4); //north, east, south, west
+                if(checkSquareWithEntities(coordinates.first - 1, coordinates.second, level.getGameField(),
+        {SquareType::Floor, SquareType::Storage})) {
+            aroundSquares[0] = visited[coordinates.first - 1][coordinates.second] ? 1 : 0;
+        } else {
+            aroundSquares[0] = 2;
+        }
+
+        if(checkSquareWithEntities(coordinates.first, coordinates.second + 1, level.getGameField(),
+        {SquareType::Floor, SquareType::Storage})) {
+            aroundSquares[1] = visited[coordinates.first][coordinates.second + 1] ? 1 : 0;
+        } else {
+            aroundSquares[1] = 2;
+        }
+
+        if(checkSquareWithEntities(coordinates.first + 1, coordinates.second, level.getGameField(),
+        {SquareType::Floor, SquareType::Storage})) {
+            aroundSquares[2] = visited[coordinates.first + 1][coordinates.second] ? 1 : 0;
+        } else {
+            aroundSquares[2] = 2;
+        }
+
+        if(checkSquareWithEntities(coordinates.first, coordinates.second - 1, level.getGameField(),
+        {SquareType::Floor, SquareType::Storage})) {
+            aroundSquares[3] = visited[coordinates.first][coordinates.second - 1] ? 1 : 0;
+        } else {
+            aroundSquares[3] = 2;
+        }
+
+        size_t countFreeSquares = 0;
+        size_t countBarriers = 0;
+        countFreeSquares = std::count(aroundSquares.begin(), aroundSquares.end(), 0);
+        countBarriers = std::count(aroundSquares.begin(), aroundSquares.end(), 2);
+
+        int direction = 0;
+        if(countFreeSquares) {
+            int randomDirection = rand() % countFreeSquares;
+            int counter = -1;
+            for (int j = 0; j < aroundSquares.size(); j++) {
+                if(counter < randomDirection && aroundSquares[j] == 0) { counter++; }
+                if(counter == randomDirection) {
+                    direction = j;
+                    break;
+                }
+            }
+        } else if(countBarriers != 4) {
+            int randomDirection = rand() % (4 - countBarriers);
+            int counter = -1;
+            for (int j = 0; j < aroundSquares.size(); j++) {
+                if(counter < randomDirection && (aroundSquares[j] == 1 || aroundSquares[j] == 0)) { counter++; }
+                if(counter == randomDirection) {
+                    direction = j;
+                    break;
+                }
+            }
+        } else {
+            return;
+        }
+
+        visited[coordinates.first][coordinates.second] = true;
+        switch (direction) {
+            case 0 : {move(i, Directions::north); coordinates.first--; break; }
+            case 1 : {move(i, Directions::east); coordinates.second++; break; }
+            case 2 : {move(i, Directions::south); coordinates.first++; break; }
+            case 3 : {move(i, Directions::west); coordinates.second--; break; }
+            default : break;
+        }
+
+            }
+        }
+    }
 }
+
 
 
 void EntityAI::AITick() {
@@ -968,8 +1068,10 @@ void EntityAI::AITick() {
     std::vector<std::pair<size_t, size_t>> storagePoints = findStorages(level.getGameField());
     std::vector<bool> visitedStorages(storagePoints.size());
 
-    FirePlace fire =  findFirePlace(*gameService_->getLevel().getMonsters().begin(), *gameService_->getLevel().getOperatives().begin());
-    std::cout << "A: " << fire.x_ << " " << fire.y_ << " " << (int)fire.directions_ << std::endl;
+    //FirePlace fire =  findFirePlace(*gameService_->getLevel().getMonsters().begin(), *gameService_->getLevel().getOperatives().begin());
+    //std::cout << "B: " << fire.x_ << " " << fire.y_ << " " << (int)fire.directions_ << std::endl;
+    walkingAttackingEntities();
     walkingNearestAttackingEntities();
+
 
 }
