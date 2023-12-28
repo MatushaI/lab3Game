@@ -1,7 +1,7 @@
 #include "gameServices.h"
 #include <algorithm>
 #include <map>
-
+std::mutex mut;
 std::vector<Item *> & Square::getItems() noexcept {
     return items;
 }
@@ -438,20 +438,25 @@ bool AttackService::attack(Entity* entity, Directions const direction){
     if(victim == nullptr) {
         return false;
     }
+    try {
+        entityPos = findPos(victim, level.getGameField());
+    } catch (std::exception const& ) {return false;}
 
-    entityPos = findPos(victim, level.getGameField());
-
+    mut.lock();
     if(!breakBorders) {
-        if(victim->getCurrentHealth() <= damage) {
-            auto victimItem = dynamic_cast<ActionItem*>(victim);
-            if(victimItem) {
-                level.addItemToSquare(victimItem->throwAllItems(), entityPos.first, entityPos.second);
+        if(gameService_->getLevel().getOperatives().count(victim) || gameService_->getLevel().getMonsters().count(victim)) {
+            if(victim->getCurrentHealth() <= damage) {
+                auto victimItem = dynamic_cast<ActionItem*>(victim);
+                if(victimItem) {
+                    level.addItemToSquare(victimItem->throwAllItems(), entityPos.first, entityPos.second);
+                }
+                level.deleteEntity(victim);
+            } else {
+                victim->setHealth(victim->getCurrentHealth() - damage);
             }
-            level.deleteEntity(victim);
-        } else {
-            victim->setHealth(victim->getCurrentHealth() - damage);
-        }
+        } else { mut.unlock(); return false; }
     }
+    mut.unlock();
 
     return true;
 }
@@ -784,11 +789,10 @@ std::vector<Entity*> entityScanerRadius(Entity * entity, int x, int y, Matrix<Sq
 EntityAI::EntityAI(std::shared_ptr<GameService> const& game) : AttackService(game), MoveService(game), gameService_(game) {}
 
 bool EntityAI::findAttackingNoSmart(Entity* entity) {
-
     Level & level = gameService_->getLevel();
 
     Matrix<bool> visited(level.size().first, level.size().second, false);
-    std::pair<size_t, size_t> coordinates = findPos(entity, level.getGameField());
+    auto coordinates = findPos(entity, level.getGameField());
 
     while (entity->getCurrentTime() > entity->getMoveTime()) {
         std::vector<char> aroundSquares(4); //north, east, south, west
@@ -796,22 +800,35 @@ bool EntityAI::findAttackingNoSmart(Entity* entity) {
         for (auto i : scan) {
             if(!(level.getMonsters().count(entity) && level.getMonsters().count(i)) &&
                 !(level.getOperatives().count(entity) && level.getOperatives().count(i))) {
-                std::pair<size_t, size_t> victimCoordinates = findPos(i, level.getGameField());
+                std::pair<size_t, size_t> victimCoordinates;
+                try {
+                     victimCoordinates = findPos(i, level.getGameField());
+                } catch (std::exception const& ) {continue;}
                 std::vector<Square*> path = findMinWay(coordinates.first, coordinates.second,
                     victimCoordinates.first, victimCoordinates.second, level);
                 if(path.size() <= 2) {
                     return true;
                 }
-                deleteEntityFromField(entity, level.getGameField());
                 std::pair<size_t, size_t> victimPos;
-                if(i->getMoveTime() * (path.size() - 2) > i->getCurrentTime()) {
-                    victimPos = level.findSquare(path[i->getCurrentTime()/i->getMoveTime()]);
-                    entity->setTime(entity->getCurrentTime() - entity->getMoveTime() * (i->getCurrentTime()/i->getMoveTime()));
+                mut.lock();
+                if(entity->getMoveTime() * (path.size() - 2) > entity->getCurrentTime()) {
+                    victimPos = level.findSquare(path[entity->getCurrentTime()/entity->getMoveTime()]);
+                    if(gameService_->getLevel().getGameField()[victimPos.first][victimPos.second]->getEntity()) {
+                        mut.unlock();
+                        continue;
+                    }
+                    entity->setTime(entity->getCurrentTime() - entity->getMoveTime() * (entity->getCurrentTime()/entity->getMoveTime()));
                 } else {
                     victimPos = level.findSquare(path[1]);
+                    if(gameService_->getLevel().getGameField()[victimPos.first][victimPos.second]->getEntity()) {
+                        mut.unlock();
+                        continue;
+                    }
                     entity->setTime(entity->getCurrentTime() - entity->getMoveTime() * (path.size() - 2));
                 }
+                deleteEntityFromField(entity, level.getGameField());
                 level.addEntity(entity, victimPos.first, victimPos.second);
+                mut.unlock();
                 return true;
             }
         }
@@ -875,6 +892,7 @@ bool EntityAI::findAttackingNoSmart(Entity* entity) {
         }
 
         visited[coordinates.first][coordinates.second] = true;
+        mut.lock();
         try {
             switch (direction) {
                 case 0 : {move(entity, Directions::north); coordinates.first--; break; }
@@ -883,7 +901,8 @@ bool EntityAI::findAttackingNoSmart(Entity* entity) {
                 case 3 : {move(entity, Directions::west); coordinates.second--; break; }
                 default : break;
             }
-        } catch (std::exception const&) {return true;}
+        } catch (std::exception const&) { mut.unlock(); break;}
+        mut.unlock();
     }
     return true;
 }
@@ -904,27 +923,27 @@ Directions findEntityAround(Entity* entity, Matrix<Square*> & gameField) {
     throw std::runtime_error("No entities around");
 }
 
-void EntityAI::walkingNearestAttackingEntities(Entity * entity, std::mutex & mutex) {
+void EntityAI::walkingNearestAttackingEntities(Entity * i, std::mutex & mutex) {
     Level & level = gameService_->getLevel();
-    for (auto & i : level.getMonsters()) {
-        if(!dynamic_cast<SmartEntity*>(i) && dynamic_cast<Attacking*>(i)) {
-            while (i->getMoveTime() < i->getCurrentTime() && dynamic_cast<Attacking*>(i)->getAttackTime() <= i->getCurrentTime()) {
-                if(findAttackingNoSmart(i)) {
-                    try {
-                        Directions dir = findEntityAround(i, level.getGameField());
-                        while (i->getCurrentTime() > dynamic_cast<Attacking*>(i)->getAttackTime()) {
-                            if(!attack(i, dir)) { break; }
-                        }
-                    } catch (std::exception const&) {}
-                } else { break; }
-            }
-        }
+    while (i->getMoveTime() < i->getCurrentTime() && dynamic_cast<Attacking*>(i)->getAttackTime() <= i->getCurrentTime()) {
+        if(findAttackingNoSmart(i)) {
+            try {
+                Directions dir = findEntityAround(i, level.getGameField());
+                while (i->getCurrentTime() > dynamic_cast<Attacking*>(i)->getAttackTime()) {
+                    if(!attack(i, dir)) { break; }
+                }
+            } catch (std::exception const&) {}
+        } else { break; }
     }
 }
 
 FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
+    std::pair<size_t, size_t> res;
     std::pair<size_t, size_t> entityPos = findPos(entity, gameService_->getLevel().getGameField());
-    std::pair<size_t, size_t> victimPos = findPos(victim, gameService_->getLevel().getGameField());
+    std::pair<size_t, size_t> victimPos;
+    try {
+        victimPos = findPos(victim, gameService_->getLevel().getGameField());
+    } catch (std::exception const&) { return {res.first, res.second, Directions::east, 0, false};}
 
     size_t start_row = victimPos.first > entity->getViewingRadius() ? victimPos.first - entity->getViewingRadius() : 0;
     size_t finish_row = victimPos.first  + entity->getViewingRadius() >= gameService_->getLevel().getGameField().getRows() ?
@@ -937,7 +956,6 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
     int minPath = INT_MAX;
     int lpath = INT_MAX -2;
     Directions dir;
-    std::pair<size_t, size_t> res;
 
     for (size_t i = start_row; i < victimPos.first; i++) {
         if(!checkSquare(i, victimPos.second, gameService_->getLevel().getGameField(), {SquareType::Floor, SquareType::Storage})) { lpath = INT_MAX; continue; }
@@ -995,10 +1013,12 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
     return {res.first, res.second, dir, minPath, true};
 }
 
+
+
 Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
 
     auto toSmart = dynamic_cast<SmartEntity*>(entity);
-    std::pair<size_t, size_t> coordinates = findPos(toSmart, gameService_->getLevel().getGameField());
+    std::pair<size_t, size_t> coordinates = findPos(toSmart, gameService_->getLevel().getGameField()); // entity нельзя уничтожить, пока они ходят - потокобезопасно
 
     Weapon * weapon = nullptr;
     auto storages = findStorages(gameService_->getLevel().getGameField());
@@ -1012,18 +1032,21 @@ Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
     if(!storagePaths.empty()) {
         size_t minIndex = 0;
         size_t minPath = SIZE_T_MAX;
+        // непотокобезопасно - сюда могут прибежать монстры
         for (int j = 0; j < storagePaths.size(); j++) {
             if(storagePaths[j] < minPath && storagePaths[j] >= 1 && gameService_->getLevel().getGameField()[storages[j].first][storages[j].second]->getEntity() == nullptr) {minPath = storagePaths[j]; minIndex = j; }
         }
 
         if(minPath != SIZE_T_MAX) {
             if((minPath - 1) * toSmart->getMoveTime() < toSmart->getCurrentTime()) {
-                deleteEntityFromField(toSmart, gameService_->getLevel().getGameField());
+                mut.lock();
                 if(gameService_->getLevel().getGameField()[storages[minIndex].first][storages[minIndex].second]->getEntity()) {
-                    gameService_->getLevel().addEntity(toSmart, coordinates.first, coordinates.second);
-                    return weapon;
+                    mut.unlock();
+                    return nullptr;
                 }
-                gameService_->getLevel().addEntity(toSmart, storages[minIndex].first, storages[minIndex].second);
+                deleteEntityFromField(toSmart, gameService_->getLevel().getGameField());
+                gameService_->getLevel().addEntity(toSmart, storages[minIndex].first, storages[minIndex].second); // тут клетка становится занятой монстром, значит доступ к полю items безопасен
+                mut.unlock();
                 toSmart->setTime(toSmart->getCurrentTime() - toSmart->getMoveTime() * (minPath - 1));
                 auto items = gameService_->getLevel().getGameField()[storages[minIndex].first][storages[minIndex].second]->getItems();
                 for (auto j : items) {
@@ -1041,15 +1064,13 @@ Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
     return weapon;
 }
 
-
-
 void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
     Level & level = gameService_->getLevel();
-    std::pair<size_t, size_t> coordinates = findPos(i, level.getGameField());
+    auto coordinates = findPos(i, level.getGameField());
     while (i->getMoveTime() < i->getCurrentTime() || dynamic_cast<SmartEntity*>(i)->getAttackTime() <= i->getCurrentTime()) {
     Matrix<bool> visited(level.size().first, level.size().second, false);
-    auto entityPos = findPos(i, gameService_->getLevel().getGameField());
-    auto entitiesAround = entityScanerRadius(i, entityPos.first, entityPos.second, gameService_->getLevel().getGameField());
+
+    auto entitiesAround = entityScanerRadius(i, coordinates.first, coordinates.second, gameService_->getLevel().getGameField());
     for (auto j : entitiesAround) { if(!gameService_->getLevel().getMonsters().count(j))
         { std::erase_if(entitiesAround, [&](Entity * ent){return !gameService_->getLevel().getOperatives().count(ent); } ); } }
     for (auto j : entitiesAround) {
@@ -1057,16 +1078,23 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
         if(pathRes.result) {
             try {
                 if(pathRes.lenght * i->getMoveTime() <= i->getCurrentTime()) {
-                    i->setTime(i->getCurrentTime() - pathRes.lenght * i->getMoveTime());
+                    // опасно - перезапись поля
+                    mut.lock();
+                    if(gameService_->getLevel().getGameField()[pathRes.x_][pathRes.y_]->getEntity()) {
+                        mut.unlock();
+                        continue;
+                    }
                     deleteEntityFromField(i, gameService_->getLevel().getGameField());
                     gameService_->getLevel().addEntity(i, pathRes.x_, pathRes.y_);
+                    mut.unlock();
+                    i->setTime(i->getCurrentTime() - pathRes.lenght * i->getMoveTime());
                     coordinates = {pathRes.x_, pathRes.y_};
                     while (i->getCurrentTime() > dynamic_cast<SmartEntity*>(i)->getAttackTime()) {
                         if(!attack(i, pathRes.directions_)) { break;}
                     }
                 }
             } catch (std::exception const&) {}
-        } else { break; }
+        }
     }
 
     auto smart = dynamic_cast<SmartEntity*>(i);
@@ -1142,8 +1170,9 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
     } else {
         return;
     }
-
+    // непотокобезопасный move
     visited[coordinates.first][coordinates.second] = true;
+        mut.lock();
         try {
             switch (direction) {
                 case 0 : {move(i, Directions::north); coordinates.first--; break; }
@@ -1152,16 +1181,67 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
                 case 3 : {move(i, Directions::west); coordinates.second--; break; }
                 default : break;
             }
-        } catch (std::exception const&) { break;}
+        } catch (std::exception const&) { mut.unlock(); break;}
+        mut.unlock();
+    }
+}
+
+void EntityAI::startCalculations(std::vector<Entity*> entities, std::mutex & mutex) {
+    for (auto i : entities) {
+        if(dynamic_cast<Attacking*>(i) && !dynamic_cast<ActionItem*>(i)) {
+            walkingNearestAttackingEntities(i, mutex);
+        } else if(dynamic_cast<SmartEntity*>(i)) {
+            walkingAttackingEntities(i, mutex);
+        }
+    }
+}
+
+void EntityAI::nonParallelWalk() {
+    for (auto i : gameService_->getLevel().getMonsters()) {
+        if(dynamic_cast<Attacking*>(i) && !dynamic_cast<ActionItem*>(i)) {
+            walkingNearestAttackingEntities(i, mut);
+        } else if(dynamic_cast<SmartEntity*>(i)) {
+            walkingAttackingEntities(i, mut);
+        }
+    }
+}
+
+
+void EntityAI::walk() {
+    size_t core = std::thread::hardware_concurrency();
+    size_t countEntityToCore = gameService_->getLevel().getMonsters().size() / core + 1;
+    size_t threadsCount = countEntityToCore == 1 ? gameService_->getLevel().getMonsters().size() : core;
+
+    std::mutex mutex;
+
+    std::vector<std::thread> threads(threadsCount);
+    std::vector<std::vector<Entity*>> toProcess;
+    size_t counter = 0;
+    auto iter = gameService_->getLevel().getMonsters().begin();
+    for (size_t i = 0; i < threadsCount; i++) {
+        std::vector<Entity*> entityToProcess;
+        for(size_t j = 0; j < countEntityToCore; j++) {
+            entityToProcess.push_back(*iter);
+            ++iter;
+        }
+        toProcess.push_back(entityToProcess);
+    }
+
+    for(size_t i = 0; i < threadsCount; i++) {
+        threads[i] = std::thread(&EntityAI::startCalculations, this, std::ref(toProcess[i]), std::ref(mutex));
+    }
+
+    for (size_t i = 0; i < threadsCount; i++) {
+        threads[i].join();
     }
 }
 
 void EntityAI::AITick() {
 
     auto start = std::chrono::steady_clock::now();
+    walk();
+    auto finish = std::chrono::steady_clock::now();
 
     for (auto i : gameService_->getLevel().getMonsters()) { i->updateCurrentTime(); }
-
-    auto finish = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() << " nanosec";
+    std::cout << "Elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << " msec" << std::endl;
 }

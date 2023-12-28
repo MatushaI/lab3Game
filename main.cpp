@@ -20,7 +20,6 @@ int main() {
     auto * gun2 = new Weapon("boooom", "AK-47");
     auto * wildGun = new Weapon("boooom2", "MachineGun");
 
-
     for (int i = 0; i < 9; i++) {
         game->getLevel().getGameField()[i][4]->changeSquareType(SquareType::Barrier);
     }
@@ -35,22 +34,24 @@ int main() {
     level.getGameField()[6][9]->changeSquareType(SquareType::Barrier);
     level.getGameField()[1][2]->changeSquareType(SquareType::Storage);
 
-    auto * wildAboba = new SmartEntity("chushka", 490, 401, 3, 30, 100, 0.5);
-    auto * oper = new Operative("Churka", 15000, 1000, 30, 30, 100, 0.5);
-    auto * oper2 = new Operative("Churka2", 15000, 1000, 30, 30, 100, 0.5);
-    auto * realWild = new wildEntity("chushka", 1000, 401, 3, 30, 800, 0.5, 20);
+    auto * wildAboba = new SmartEntity("chushka", 490, 600, 3, 30, 100, 0.5);
+    auto * oper = new Operative("Churka", 150000, 1000, 30, 30, 100, 0.5);
+    auto * oper2 = new Operative("Churka2", 150000, 3000, 30, 30, 100, 0.5);
+    auto * realWild = new SmartEntity("chushka1", 100, 401, 3, 30, 800, 0.5);
+    auto * nextSmart = new wildEntity("chushka2", 100, 401, 3, 30, 1500, 0.5, 20);
     game->getLevel().addEntity(oper2, 1, 9);
     game->getLevel().addEntity(realWild, 9, 7);
+    game->getLevel().addEntity(nextSmart, 0, 0);
 
     wildGun->setCurrentCartridges(300);
-    level.addItemToSquare(wildGun, 1, 2);
+    //level.addItemToSquare(wildGun, 1, 2);
 
     gun->setCurrentCartridges(40);
     oper->addActiveItem(gun);
     gun2->setCurrentCartridges(100);
     oper2->addActiveItem(gun2);
 
-    //wildAboba->addItem(wildGun);
+    wildAboba->addItem(wildGun);
 
     game->getLevel().addEntity(wildAboba, 4, 5);
     level.getGameField()[5][5]->changeSquareType(SquareType::Window);
@@ -62,6 +63,15 @@ int main() {
     entityScanerRadius(wildAboba, 0, 0, game->getLevel().getGameField());
 
     auto ai = EntityAI(game);
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
+    ai.AITick();
     ai.AITick();
     ai.AITick();
     //std::cout << wildGun->getCurrentCartridges();
