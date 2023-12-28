@@ -29,5 +29,3 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Core)
 target_include_directories(lab3Game PUBLIC source/gameServices)
 target_link_libraries(lab3Game PUBLIC gameServ items inventory enemys)
 target_link_libraries(lab3Game PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Core)
-
-
