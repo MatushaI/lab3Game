@@ -20,10 +20,12 @@ public:
     virtual int attack() = 0;
     int getDamage();
     double getAccuracy();
+    [[nodiscard]] virtual int getAttackTime() const;
     virtual ~Attacking() = default;
 protected:
     int damage;
     double accuracy;
+    int attackTime;
 };
 
 class MedKitUsed {
@@ -47,6 +49,7 @@ public:
     [[nodiscard]] int getMoveTime() const noexcept;
     [[nodiscard]] int getViewingRadius() const noexcept;
     bool setHealth(int count);
+    bool setTime(int time);
     void updateCurrentTime();
 
     virtual int move() = 0;
@@ -68,8 +71,6 @@ public:
     int attack() override;
     int move() override;
     ~wildEntity() override = default;
-private:
-    int attackTime;
 };
 
 class SmartEntity : public Entity, public ActionItem, public Attacking { // Добавить новый
@@ -84,6 +85,7 @@ public:
     Weapon * getActiveWeapon();
     std::vector<Item*> throwAllItems() override;
     bool canKeeping(Item * item) override;
+    int getAttackTime() const override;
     ~SmartEntity() override = default;
 protected:
     Weapon * activeWeapon = nullptr;

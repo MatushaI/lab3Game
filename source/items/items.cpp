@@ -139,7 +139,7 @@ int Weapon::shot() {
     return shotTime_;
 }
 
-int Weapon::reload(CartridgeContainer &container) {
+int Weapon::reload(CartridgeContainer & container) {
     if(container.getType() != cartridgeType_) {
         throw std::logic_error("invalid container type");
     }

@@ -1,5 +1,9 @@
 #include "enemy.h"
 
+int Attacking::getAttackTime() const {
+    return attackTime;
+}
+
 Entity::Entity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius) :
 name_(name), maxHealth_(maxHealth), maxTime_(maxTime), moveTime_(moveTime), viewingRadius_(viewingRadius) {
     currentHealth_ = maxHealth;
@@ -11,6 +15,14 @@ bool Entity::setHealth(int count) {
     }
     currentHealth_ = count;
     return true;
+}
+
+bool Entity::setTime(int time) {
+    if(time > maxTime_) {
+        return false;
+    } else {
+        currentTime_ = time;
+    }
 }
 
 std::string const& Entity::getName() noexcept { return name_; }
@@ -37,12 +49,13 @@ double Attacking::getAccuracy() { return accuracy; }
 
 // wildEntity
 
-wildEntity::wildEntity() : Attacking(0, 0), attackTime(0) {}
+wildEntity::wildEntity() : Attacking(0, 0) {}
 
 wildEntity::wildEntity(std::string const&name, int maxHealth, int maxTime, int moveTime,
-    int viewingRadius, int damage, double accuracy, int attackTime) :
+    int viewingRadius, int damage, double accuracy, int attackTime_) :
     Attacking(damage, accuracy),
-    Entity(name, maxHealth, maxTime, moveTime, viewingRadius), attackTime(attackTime) {
+    Entity(name, maxHealth, maxTime, moveTime, viewingRadius) {
+    attackTime = attackTime_;
     currentTime_ = maxTime;
     currentHealth_ = maxHealth;
 }
@@ -58,7 +71,7 @@ int wildEntity::attack() {
 
 int wildEntity::move() {
     if(currentTime_ < moveTime_) {
-        throw std::logic_error("not enough time points");
+        return 0;
     }
     currentTime_ -= moveTime_;
     return moveTime_;
@@ -78,11 +91,11 @@ std::vector<Item*> SmartEntity::throwAllItems() {
 SmartEntity::SmartEntity() : Attacking(0, 0) {}
 
 SmartEntity::SmartEntity(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, int damage, double accuracy) :
-Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy) {}
+Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, accuracy) { currentTime_ = maxTime; }
 
 int SmartEntity::move() {
     if(currentTime_ < moveTime_) {
-        throw std::logic_error("not enough time points");
+        throw std::logic_error("no time points");
     }
     currentTime_ -= moveTime_;
     return moveTime_;
@@ -128,6 +141,11 @@ int SmartEntity::attack() {
 Weapon* SmartEntity::getActiveWeapon() {
     return activeWeapon;
 }
+
+int SmartEntity::getAttackTime() const {
+    return activeWeapon ? activeWeapon->getShotTime() : 0;
+}
+
 
 Furajire::Furajire(std::string const& name, int maxHealth, int maxTime, int moveTime, int viewingRadius, size_t x, size_t y) :
 Entity(name, maxHealth, maxTime, moveTime, viewingRadius), inventory(x, y)   {}

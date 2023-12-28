@@ -241,7 +241,7 @@ public:
 
         difference_type ptrPos() const { return ptr_ - ptr_begin_; }
         //T& operator*() { return *ptr_; }
-        T& operator*() const { return *ptr_; }
+        reference operator*() const { return *ptr_; }
 
         T& operator[](size_t index) const { return *(ptr_begin_ + index); }
 
