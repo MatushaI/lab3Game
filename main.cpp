@@ -17,7 +17,9 @@ int main() {
     //std::cout << oper->getName();
 
     auto * gun = new Weapon("boooom", "AK-47");
+    auto * gun2 = new Weapon("boooom", "AK-47");
     auto * wildGun = new Weapon("boooom2", "MachineGun");
+
 
     for (int i = 0; i < 9; i++) {
         game->getLevel().getGameField()[i][4]->changeSquareType(SquareType::Barrier);
@@ -33,16 +35,20 @@ int main() {
     level.getGameField()[6][9]->changeSquareType(SquareType::Barrier);
     level.getGameField()[1][2]->changeSquareType(SquareType::Storage);
 
-    auto * wildAboba = new SmartEntity("chushka", 100, 401, 3, 30, 100, 0.5);
-    auto * oper = new Operative("Churka", 2000, 1000, 30, 30, 100, 0.5);
-
+    auto * wildAboba = new SmartEntity("chushka", 490, 401, 3, 30, 100, 0.5);
+    auto * oper = new Operative("Churka", 15000, 1000, 30, 30, 100, 0.5);
+    auto * oper2 = new Operative("Churka2", 15000, 1000, 30, 30, 100, 0.5);
+    auto * realWild = new wildEntity("chushka", 1000, 401, 3, 30, 800, 0.5, 20);
+    game->getLevel().addEntity(oper2, 1, 9);
+    game->getLevel().addEntity(realWild, 9, 7);
 
     wildGun->setCurrentCartridges(300);
     level.addItemToSquare(wildGun, 1, 2);
 
     gun->setCurrentCartridges(40);
     oper->addActiveItem(gun);
-
+    gun2->setCurrentCartridges(100);
+    oper2->addActiveItem(gun2);
 
     //wildAboba->addItem(wildGun);
 
@@ -56,6 +62,7 @@ int main() {
     entityScanerRadius(wildAboba, 0, 0, game->getLevel().getGameField());
 
     auto ai = EntityAI(game);
+    ai.AITick();
     ai.AITick();
     //std::cout << wildGun->getCurrentCartridges();
     std::cout << "A: " << oper->getCurrentHealth() << std::endl;
@@ -74,17 +81,16 @@ int main() {
     std::cout << wildAboba->getCurrentHealth() << std::endl;
     //std::cout << move->gameService->getLevel().getGameField()[4][5].getItems()[0]->getName();
 
-    auto * mainView = new mainwindow(nullptr, game.get());
-    mainView->resize(1000, 1000);
-    mainView->show();
-    mainView->drawMap();
+
     level.getGameField()[3][9]->changeSquareType(SquareType::Wall);
     //move->gameService->getLevel().getGameField()[3][2].changeSquareType(SquareType::Wall);
     //std::vector<Square*> res = findMinWay(0, 0, 9, 9, level);
 
     //std::cout << viewingObjectArea(0, 3, 3, 0, game->getLevel().getGameField()) << std::endl;
-
-    //return app->exec();
+    auto * mainView = new mainwindow(nullptr, game);
+    mainView->resize(1000, 1000);
+    mainView->show();
+    return app->exec();
 
     //return app->exec();
     return 0;

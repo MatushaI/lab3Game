@@ -71,7 +71,7 @@ int wildEntity::attack() {
 
 int wildEntity::move() {
     if(currentTime_ < moveTime_) {
-        throw std::logic_error("not enough time points");
+        return 0;
     }
     currentTime_ -= moveTime_;
     return moveTime_;
@@ -95,7 +95,7 @@ Entity(name, maxHealth, maxTime, moveTime, viewingRadius), Attacking(damage, acc
 
 int SmartEntity::move() {
     if(currentTime_ < moveTime_) {
-        throw std::logic_error("not enough time points");
+        throw std::logic_error("no time points");
     }
     currentTime_ -= moveTime_;
     return moveTime_;

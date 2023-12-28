@@ -10,6 +10,8 @@
 #include <QMap>
 #include <QPushButton>
 #include <ui_mainwindow.h>
+#include <QTimer>
+#include <QContextMenuEvent>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class mainwindow; }
@@ -19,15 +21,24 @@ class mainwindow : public QMainWindow {
 Q_OBJECT
 
 public:
-    mainwindow(QWidget *parent = nullptr, GameService * game = nullptr);
+    mainwindow(QWidget *parent = nullptr, std::shared_ptr<GameService> const& game = nullptr);
     void drawMap();
     ~mainwindow() override;
 private:
+    bool isHightlited;
+    QPair<size_t, size_t> highlightSquare;
+    QString getSquareName(size_t x, size_t y);
     Ui::mainwindow *ui;
-    GameService * game_ = nullptr;
+    std::shared_ptr<GameService> game_ = nullptr;
     QMap<QString, QPixmap> textures;
-private slots:
-
+    QTimer *timer;
+    MoveService * moveService_;
+    AttackService * attackService_;
+protected:
+    void keyPressEvent(QKeyEvent *) override;
+public slots:
+    void cellSelected(int, int);
+    void checkButtons();
 };
 
 #endif //MAINWINDOW_H

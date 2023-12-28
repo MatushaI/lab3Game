@@ -4,7 +4,7 @@
 #include "items.h"
 #include "matrix_lib.h"
 
-class Inventory{
+class Inventory {
 public:
     Inventory(size_t x, size_t y);
 
