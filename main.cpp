@@ -20,7 +20,6 @@ int main() {
     auto * gun2 = new Weapon("boooom", "AK-47");
     auto * wildGun = new Weapon("boooom2", "MachineGun");
 
-
     for (int i = 0; i < 9; i++) {
         game->getLevel().getGameField()[i][4]->changeSquareType(SquareType::Barrier);
     }
@@ -38,9 +37,11 @@ int main() {
     auto * wildAboba = new SmartEntity("chushka", 490, 401, 3, 30, 100, 0.5);
     auto * oper = new Operative("Churka", 15000, 1000, 30, 30, 100, 0.5);
     auto * oper2 = new Operative("Churka2", 15000, 1000, 30, 30, 100, 0.5);
-    auto * realWild = new wildEntity("chushka", 1000, 401, 3, 30, 800, 0.5, 20);
+    auto * realWild = new SmartEntity("chushka1", 1000, 401, 3, 30, 800, 0.5);
+    auto * nextSmart = new SmartEntity("chushka2", 1000, 401, 3, 30, 800, 0.5);
     game->getLevel().addEntity(oper2, 1, 9);
     game->getLevel().addEntity(realWild, 9, 7);
+    game->getLevel().addEntity(nextSmart, 0, 0);
 
     wildGun->setCurrentCartridges(300);
     level.addItemToSquare(wildGun, 1, 2);
@@ -62,6 +63,8 @@ int main() {
     entityScanerRadius(wildAboba, 0, 0, game->getLevel().getGameField());
 
     auto ai = EntityAI(game);
+    ai.AITick();
+    ai.AITick();
     ai.AITick();
     ai.AITick();
     //std::cout << wildGun->getCurrentCartridges();
@@ -90,7 +93,7 @@ int main() {
     auto * mainView = new mainwindow(nullptr, game);
     mainView->resize(1000, 1000);
     mainView->show();
-    return app->exec();
+    //return app->exec();
 
     //return app->exec();
     return 0;

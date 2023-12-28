@@ -923,8 +923,12 @@ void EntityAI::walkingNearestAttackingEntities(Entity * entity, std::mutex & mut
 }
 
 FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
+    std::pair<size_t, size_t> res;
     std::pair<size_t, size_t> entityPos = findPos(entity, gameService_->getLevel().getGameField());
-    std::pair<size_t, size_t> victimPos = findPos(victim, gameService_->getLevel().getGameField());
+    std::pair<size_t, size_t> victimPos;
+    try {
+        victimPos = findPos(victim, gameService_->getLevel().getGameField());
+    } catch (std::exception const&) { return {res.first, res.second, Directions::east, 0, false};}
 
     size_t start_row = victimPos.first > entity->getViewingRadius() ? victimPos.first - entity->getViewingRadius() : 0;
     size_t finish_row = victimPos.first  + entity->getViewingRadius() >= gameService_->getLevel().getGameField().getRows() ?
@@ -937,7 +941,6 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
     int minPath = INT_MAX;
     int lpath = INT_MAX -2;
     Directions dir;
-    std::pair<size_t, size_t> res;
 
     for (size_t i = start_row; i < victimPos.first; i++) {
         if(!checkSquare(i, victimPos.second, gameService_->getLevel().getGameField(), {SquareType::Floor, SquareType::Storage})) { lpath = INT_MAX; continue; }
@@ -995,10 +998,12 @@ FirePlace EntityAI::findFirePlace(Entity * entity, Entity * victim) {
     return {res.first, res.second, dir, minPath, true};
 }
 
+std::mutex mut;
+
 Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
 
     auto toSmart = dynamic_cast<SmartEntity*>(entity);
-    std::pair<size_t, size_t> coordinates = findPos(toSmart, gameService_->getLevel().getGameField());
+    std::pair<size_t, size_t> coordinates = findPos(toSmart, gameService_->getLevel().getGameField()); // entity нельзя уничтожить, пока они ходят - потокобезопасно
 
     Weapon * weapon = nullptr;
     auto storages = findStorages(gameService_->getLevel().getGameField());
@@ -1012,18 +1017,21 @@ Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
     if(!storagePaths.empty()) {
         size_t minIndex = 0;
         size_t minPath = SIZE_T_MAX;
+        // непотокобезопасно - сюда могут прибежать монстры
         for (int j = 0; j < storagePaths.size(); j++) {
             if(storagePaths[j] < minPath && storagePaths[j] >= 1 && gameService_->getLevel().getGameField()[storages[j].first][storages[j].second]->getEntity() == nullptr) {minPath = storagePaths[j]; minIndex = j; }
         }
 
         if(minPath != SIZE_T_MAX) {
             if((minPath - 1) * toSmart->getMoveTime() < toSmart->getCurrentTime()) {
-                deleteEntityFromField(toSmart, gameService_->getLevel().getGameField());
+                mut.lock();
                 if(gameService_->getLevel().getGameField()[storages[minIndex].first][storages[minIndex].second]->getEntity()) {
-                    gameService_->getLevel().addEntity(toSmart, coordinates.first, coordinates.second);
-                    return weapon;
+                    mut.unlock();
+                    return nullptr;
                 }
-                gameService_->getLevel().addEntity(toSmart, storages[minIndex].first, storages[minIndex].second);
+                deleteEntityFromField(toSmart, gameService_->getLevel().getGameField());
+                gameService_->getLevel().addEntity(toSmart, storages[minIndex].first, storages[minIndex].second); // тут клетка становится занятой монстром, значит доступ к полю items безопасен
+                mut.unlock();
                 toSmart->setTime(toSmart->getCurrentTime() - toSmart->getMoveTime() * (minPath - 1));
                 auto items = gameService_->getLevel().getGameField()[storages[minIndex].first][storages[minIndex].second]->getItems();
                 for (auto j : items) {
@@ -1041,15 +1049,13 @@ Weapon * EntityAI::findWeaponInStorages(Entity * entity) {
     return weapon;
 }
 
-
-
 void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
     Level & level = gameService_->getLevel();
-    std::pair<size_t, size_t> coordinates = findPos(i, level.getGameField());
+    auto coordinates = findPos(i, level.getGameField());
     while (i->getMoveTime() < i->getCurrentTime() || dynamic_cast<SmartEntity*>(i)->getAttackTime() <= i->getCurrentTime()) {
     Matrix<bool> visited(level.size().first, level.size().second, false);
-    auto entityPos = findPos(i, gameService_->getLevel().getGameField());
-    auto entitiesAround = entityScanerRadius(i, entityPos.first, entityPos.second, gameService_->getLevel().getGameField());
+
+    auto entitiesAround = entityScanerRadius(i, coordinates.first, coordinates.second, gameService_->getLevel().getGameField());
     for (auto j : entitiesAround) { if(!gameService_->getLevel().getMonsters().count(j))
         { std::erase_if(entitiesAround, [&](Entity * ent){return !gameService_->getLevel().getOperatives().count(ent); } ); } }
     for (auto j : entitiesAround) {
@@ -1057,16 +1063,23 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
         if(pathRes.result) {
             try {
                 if(pathRes.lenght * i->getMoveTime() <= i->getCurrentTime()) {
-                    i->setTime(i->getCurrentTime() - pathRes.lenght * i->getMoveTime());
+                    // опасно - перезапись поля
+                    mut.lock();
+                    if(gameService_->getLevel().getGameField()[pathRes.x_][pathRes.y_]->getEntity()) {
+                        mut.unlock();
+                        continue;
+                    }
                     deleteEntityFromField(i, gameService_->getLevel().getGameField());
                     gameService_->getLevel().addEntity(i, pathRes.x_, pathRes.y_);
+                    mut.unlock();
+                    i->setTime(i->getCurrentTime() - pathRes.lenght * i->getMoveTime());
                     coordinates = {pathRes.x_, pathRes.y_};
                     while (i->getCurrentTime() > dynamic_cast<SmartEntity*>(i)->getAttackTime()) {
                         if(!attack(i, pathRes.directions_)) { break;}
                     }
                 }
             } catch (std::exception const&) {}
-        } else { break; }
+        }
     }
 
     auto smart = dynamic_cast<SmartEntity*>(i);
@@ -1142,8 +1155,9 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
     } else {
         return;
     }
-
+    // непотокобезопасный move
     visited[coordinates.first][coordinates.second] = true;
+        mut.lock();
         try {
             switch (direction) {
                 case 0 : {move(i, Directions::north); coordinates.first--; break; }
@@ -1152,16 +1166,28 @@ void EntityAI::walkingAttackingEntities(Entity * i, std::mutex & mutex) {
                 case 3 : {move(i, Directions::west); coordinates.second--; break; }
                 default : break;
             }
-        } catch (std::exception const&) { break;}
+        } catch (std::exception const&) { mut.unlock(); break;}
+        mut.unlock();
     }
 }
 
 void EntityAI::AITick() {
 
+    std::vector<Entity*> ent;
+    for (auto i : gameService_->getLevel().getMonsters()) {
+        if(dynamic_cast<SmartEntity*>(i)) {ent.push_back(i); }
+    }
     auto start = std::chrono::steady_clock::now();
 
-    for (auto i : gameService_->getLevel().getMonsters()) { i->updateCurrentTime(); }
+    std::thread th1(&EntityAI::walkingAttackingEntities, this, std::ref(ent[0]), std::ref(mut));
+    std::thread th2(&EntityAI::walkingAttackingEntities, this, std::ref(ent[1]), std::ref(mut));
+    std::thread th3(&EntityAI::walkingAttackingEntities, this, std::ref(ent[2]), std::ref(mut));
+
+    th1.join();
+    th2.join();
+    th3.join();
 
     auto finish = std::chrono::steady_clock::now();
-    std::cout << "Elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count() << " nanosec";
+    for (auto i : gameService_->getLevel().getMonsters()) { i->updateCurrentTime(); }
+    std::cout << "Elapsed time in seconds: " << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count() << " msec" << std::endl;
 }
